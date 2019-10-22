@@ -4,7 +4,7 @@
 #include <iostream>
 
 // TODO does this do what I think it does?
-Bot::Bot(std::string token, char ref) : token{token}, ref{ref} {}
+Bot::Bot(std::string token, char ref) : token{U(token)}, ref{ref} {}
 
 int
 Bot::run()
@@ -18,11 +18,12 @@ void
 Bot::login(const std::string &token)
 //retrieve a response from the websocket
 {
+  nlohmann::json gateway_dump;
   try {
-    auto response = get_wss(token).get();
-  } catch (401) {
-    exit(1);
-  } catch(402) {
+    // should contain wss url, sharding information, and rate limiting
+    gateway_dump = get_wss(token).get();
+  } catch (int e) {
+    std::cout << "Failed to connect with HTTP code: " << e << std::endl;
     exit(1);
   } catch(const boost::system::system_error& ex) {
     std::cout << ex.code() << " " << ex.code().message() << std::endl;
@@ -31,4 +32,12 @@ Bot::login(const std::string &token)
     std::cout << "login exception: " << e.what() << std::endl;
     exit(1);
   }
+  // FIXME json might return different kinds of strings
+  std::unordered_map<std::string, std::string> d = {
+    {U("token"), this->token},
+    {U("properties"), "{$os : linux, $browser: firefox, $device: laptop}"}
+  }
+  // discord requires us to send, information regarding bot token, platform,
+  //    heartbeat rate, etc.
+  send_payload(payload{discord::opcodes IDENTITY, d});
 }

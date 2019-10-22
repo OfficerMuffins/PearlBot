@@ -1,5 +1,5 @@
 CXX = clang++
-CXX_FLAGS = -Og
+CXX_FLAGS = -O2 -std=c++17 -Og -Wc++17-extensions
 LIBS = -lpthread \
        -lcrypto \
        -lssl \
@@ -11,7 +11,7 @@ CPP_FILES = main.cpp\
 	    discord.cpp
 
 build:
-	$(CXX) $(CPP_FILES) $(LIBS)
+	$(CXX) $(CPP_FILES) -o PearlBot $(LIBS)
 
 clean:
 	rm *.o
