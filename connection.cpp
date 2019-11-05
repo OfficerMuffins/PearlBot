@@ -1,4 +1,5 @@
 #include "discord.hpp"
+#include "utils.hpp"
 #include <cpprest/http_client.h>
 #include <cpprest/ws_client.h>
 #include <nlohmann/json.hpp>
@@ -6,16 +7,18 @@
 #include <string>
 
 namespace discord {
+  payload::payload(opcodes op, int s, std::string t, nlohmann::json d) : op{op}, d{d}, s{s}, t{t} {;}
+  payload::payload(opcodes op) { payload(op, 0, "null", {}); }
+
   Connection::Connection(encoding enc, bool compress, std::string uri, state state) :
-    status{state}, encoding_type{enc}, compress{compress}, uri{uri}, threads(3) {}
+    status{state}, encoding_type{enc}, compress{compress}, uri{uri} {;}
 
   Connection::Connection()
   {
     Connection(Connection::encoding::JSON, false, "", DEAD);
-  };
+  }
 
-  pplx::task<nlohmann::json>
-  Connection::get_wss(const std::string &token)
+  pplx::task<nlohmann::json> Connection::get_wss(const std::string &token)
   /**
    * @brief: grab wss url from discord HTTP response
    */
@@ -45,22 +48,16 @@ namespace discord {
       });
   }
 
-  pplx::task<nlohmann::json>
-  Connection::send_payload(const payload &payload)
+  pplx::task<nlohmann::json> Connection::send_payload(const nlohmann::json &payload)
   /**
    * @brief: sends the payload via websocket
    */
   {
     websocket_outgoing_message out_msg;
-    auto payload_json = package(payload);
-    out_msg.set_utf8_message(payload_json.dump());
-    std::cout << payload_json.dump() << std::endl;
+    out_msg.set_utf8_message(payload.dump());
+    std::cout << "Sending " << payload.dump() << std::endl;
     // before sending a payload, send empty message so that we can
     // connect to the websocket api
-    // TODO make sure wss_url is correct encoding
-    client.connect(uri).then([]() {
-        std::cout << "Connected with the websocket" << std::endl;
-        }).wait();
     // append json headers created from the payload
     client.send(out_msg).wait();
     return client.receive().then([](websocket_incoming_message msg) {
@@ -71,43 +68,62 @@ namespace discord {
       });
   }
 
-  nlohmann::json
-  Connection::package(const payload &payload)
+  nlohmann::json Connection::package(const payload &payload)
   /**
    * @brief: packages the payload into a readable input for the web request
    */
   {
-    return {
-      {"t", payload.t},
-      {"s", payload.s},
+    nlohmann::json data;
+    data =
+    {
       {"op", payload.op},
-      {"d", payload.d}
+      {"s", payload.s},
+      {"t", payload.t}
     };
+    switch(payload.op) {
+      case(IDENTIFY):
+        extendJson(data,
+            { "d",
+              {
+                { "token", token },
+                { "session_id", session_id },
+                { "seq", last_sequence_data }
+              }
+            });
+        break;
+      default:
+        extendJson(data, {"d" , nullptr});
+    }
+    return data;
   }
 
-  void
-  Connection::pulse()
+  void Connection::pulse()
   /**
    * @brief: sends a heartbeat payload
    */
   {
     while(status == state::ACTIVE) {
-      auto resp = send_payload(payload{HEARTBEAT}).get();
+      std::this_thread::sleep_for(std::chrono::milliseconds{heartbeat - 5});
+      auto resp = send_payload(package({HEARTBEAT})).get();
       if(resp["op"] == HEARTBEAT_ACK) {
         std::cout << "received an acknowledge!" << std::endl;
       }
     }
   }
 
-  void
-  Connection::end()
+  void Connection::end()
   {
     status = state::DEAD;
+    /*
+    for(std::vector<std::thread>::iterator it = threads.begin();
+        it != threads.end();
+        it++)
+      it->join();*/
+    heartbeat_thread.join();
     client.close().wait();
   }
 
-  void
-  Connection::handle_gateway(const std::string &token)
+  void Connection::handle_gateway(const std::string &token)
   {
     nlohmann::json dump;
     // should contain wss url, only expected field is the url field
@@ -116,20 +132,35 @@ namespace discord {
     uri = dump.value("url", "\0") + "/?v=6&encoding=json";
   }
 
-  void
-  Connection::handshake(const std::string &token)
+  void Connection::handshake(const std::string &token)
   {
     nlohmann::json dump;
     // send an empty message so that we can obtain a heartbeat interval
-    dump = send_payload(payload{HELLO}).get();
+    client.connect(uri).then([this]() {
+        std::cout << "Connected to " << this->uri << std::endl;
+        }).wait();
+    dump = send_payload(package({HELLO})).get();
     heartbeat = dump["d"]["heartbeat_interval"];
-    // now we begin communication with the gateway
-    dump = send_payload(payload{
-        IDENTIFY,
-        std::unordered_map<std::string, std::string> {
-          {U("token"), token},
-          {U("properties"), "{$os : linux, $browser: firefox, $device: laptop}"}
-        }}).get();
+    // set the state of the connection so that we can start heartbeating
     status = state::ACTIVE;
+    // now we begin communication with the gateway
+    dump = send_payload(package({IDENTIFY, 0, "null",
+          { "d",
+            {
+              { "token", token },
+                { "properties",
+                  {
+                    { "$os", "linux" },
+                    { "$browser", "PearlBot" },
+                    { "$device", "PearlBot" }
+                  }
+                },
+              { "compress", false },
+              { "large_threshold", 250 }
+            }
+          }
+        })).get();
+    heartbeat_thread = std::thread{ &Connection::pulse, this };
+    while(1);
   }
 }

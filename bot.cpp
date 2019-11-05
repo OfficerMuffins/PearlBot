@@ -7,8 +7,7 @@ namespace discord {
   Bot::Bot(std::string token, char ref) : token{U(token)}, ref{ref} {}
   Bot::Bot() { Bot(".", '\0'); }
 
-  int
-  Bot::run()
+  int Bot::run()
   {
     std::cout << "printing" << std::endl;
     login();
@@ -16,8 +15,7 @@ namespace discord {
     return 0;
   }
 
-  void
-  Bot::login()
+  void Bot::login()
   //retrieve a response from the websocket
   {
     try {

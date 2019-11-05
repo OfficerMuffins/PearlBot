@@ -35,13 +35,14 @@ namespace discord
 
   typedef struct payload {
     opcodes op;
-    std::unordered_map<std::string, std::string> d;
+    nlohmann::json d;
     // last 2 are only used for opcode 10
     int s;
     std::string t;
 
     public:
-      payload(opcodes op, std::unordered_map<std::string, std::string> d = {}, int s = 0, std::string t = "\0") : op{op}, d{d}, s{s}, t{t} {};
+      payload(opcodes op, int, std::string, nlohmann::json);
+      payload(opcodes op);
   } payload;
 
   class Connection {
@@ -61,19 +62,23 @@ namespace discord
       encoding encoding_type;
       std::string uri;
       wss_client client;
+      std::mutex buffer_lock;
 
       int heartbeat;
       int sharding;
-      std::vector<std::thread> threads;
+      std::thread heartbeat_thread;
       snowflake_t snowflake;
       bool compress; // only supports zlib stream for now
+      std::string token;
+      int session_id;
+      int last_sequence_data;
 
     public:
       Connection(encoding, bool, std::string, state);
       Connection();
       pplx::task<nlohmann::json> get_wss(const std::string &);
       nlohmann::json package(const payload&);
-      pplx::task<nlohmann::json> send_payload(const payload &);
+      pplx::task<nlohmann::json> send_payload(const nlohmann::json &);
       void end();
       void pulse();
       void handle_gateway(const std::string&);

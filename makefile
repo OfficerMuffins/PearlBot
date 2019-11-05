@@ -1,5 +1,5 @@
 CXX = clang++
-CXX_FLAGS = -O2 -std=c++17 -Wc++17-extensions
+CXX_FLAGS = -O2 -g -std=c++17 -Wc++17-extensions
 LIBS = -lpthread \
        -lcrypto \
        -lssl \
@@ -8,7 +8,8 @@ LIBS = -lpthread \
 
 CPP_FILES = main.cpp\
 	    bot.cpp\
-	    connection.cpp
+	    connection.cpp\
+	    utils.cpp
 
 build:
 	$(CXX) $(CXX_FLAGS) $(CPP_FILES) -o PearlBot $(LIBS)

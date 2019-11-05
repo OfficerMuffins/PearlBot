@@ -74,7 +74,5 @@
 //    int _errCode;
 //};
 
-pplx::task<nlohmann::json> get_wss(const std::string &);
-nlohmann::json package(const discord::payload&);
-pplx::task<nlohmann::json> send_payload(const discord::payload &payload, std::string&);
+void extendJson(nlohmann::json &, const nlohmann::json &);
 #endif
