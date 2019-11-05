@@ -38,31 +38,31 @@ get_wss(const std::string &token)
     });
 }
 
-pplx::task<void>
-send_payload(const payload &payload, std::string &wss_url)
+pplx::task<nlohmann::json>
+send_payload(const payload &payload)
 /**
  * @brief: sends the payload via websocket
  */
 {
-  websocket_outgoing_message msg;
-  auto packaged_json = package(payload);
-  std::cout << packaged_json.dump() << std::endl;
+  wss_client client;
+  websocket_outgoing_message out_msg;
+  auto payload_json = package(payload);
+  out_msg.set_utf8_message(payload_json.dump());
+  std::cout << payload_json.dump() << std::endl;
   // before sending a payload, send empty message so that we can
   // connect to the websocket api
   // TODO make sure wss_url is correct encoding
-  client.connect(wss_url).then([]() {
-      std::cout << "finished connecting" << std::endl;
-      });
+  wss_client.connect(uri).then([]() {
+      std::cout << "Connected with the websocket" << std::endl;
+      }).wait();
   // append json headers created from the payload
-  /*
-  for(auto &e : package(payload)) {
-    std::cout << e.first() << " " << e.second() << std::endl;
-  }*/
-  std::cout << package(payload).dump() << std::endl;
-  client.send(msg);
-  return client.receive().then([](websocket_incoming_message msg) {
-      std::cout << msg.extract_string().get() << std::endl;
-      });
+  wss_client.send(out_msg).wait();
+  return wss_client.receive().then([](websocket_incoming_message msg) {
+      std::string out = msg.extract_string().get();
+      std::cout << "message: " << out << std::endl;
+      auto parsed_json = out.empty() ? nlohmann::json{} : nlohmann::json::parse(out);
+      return parsed_json;
+    });
 }
 
 nlohmann::json
@@ -72,9 +72,33 @@ package(const payload &payload)
  */
 {
   return {
+    {"t", payload.t}
+    {"s", payload.s},
     {"op", payload.op},
     {"d", payload.d},
-    {"s", payload.s},
-    {"t", payload.t}
   };
+}
+
+void
+pulse()
+/**
+ * @brief: sends a heartbeat payload
+ */
+{
+  auto resp = send_payload(payload{
+          IDENTIFY,
+          std::unordered_map<std::string, std::string> {
+            {U("token"), this->token},
+            {U("properties"), "{$os : linux, $browser: firefox, $device: laptop}"}
+          }}
+          ,wss_url).get();
+  if(stoi(resp["op"]) == HEARTBEAT_ACK) {
+    std::cout << "we received an acknowledge!" << std::endl;
+  }
+}
+
+void
+end()
+{
+  client.close().wait();
 }

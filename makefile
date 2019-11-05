@@ -8,7 +8,7 @@ LIBS = -lpthread \
 
 CPP_FILES = main.cpp\
 	    bot.cpp\
-	    discord.cpp
+	    connection.cpp
 
 build:
 	$(CXX) $(CXX_FLAGS) $(CPP_FILES) -o PearlBot $(LIBS)

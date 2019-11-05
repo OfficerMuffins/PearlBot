@@ -76,5 +76,5 @@
 
 pplx::task<nlohmann::json> get_wss(const std::string &);
 nlohmann::json package(const discord::payload&);
-pplx::task<void> send_payload(const discord::payload &payload);
+pplx::task<nlohmann::json> send_payload(const discord::payload &payload, std::string&);
 #endif
