@@ -1,14 +1,16 @@
 #include "discord.hpp"
-
+#include "utils.hpp"
 #include <cpprest/http_client.h>
 #include <cpprest/ws_client.h>
 #include <nlohmann/json.hpp>
 #include <iostream>
 
+using namespace discord;
 
-pplx::task<nlohmann::json> get_wss(const std::string &token)
+pplx::task<nlohmann::json>
+get_wss(const std::string &token)
 /**
- * @brief: grab wss from discord HTTP response
+ * @brief: grab wss url from discord HTTP response
  */
 {
   // required headers the first request
@@ -17,8 +19,6 @@ pplx::task<nlohmann::json> get_wss(const std::string &token)
   request.headers().add(U("Authorization"), utility::conversions::to_string_t("Bot " + token));
   request.headers().add(U("Content-Type"), U("application/json"));
   request.headers().add(U("User-Agent"), U("DiscordBot https://github.com/OfficerMuffins/Pearlbot 1.0.0"));
-  // uri and endpoint
-  std::cout << "Preparing to send empty request" << std::endl;
   // GET is the default method, but let's be explicit
   // params: base_uri, config
   web::http::client::http_client client{ {U("https://discordapp.com/api/v6/gateway")}};
@@ -29,7 +29,6 @@ pplx::task<nlohmann::json> get_wss(const std::string &token)
             // TODO should error if the json dump is empty
             std::string json_dump = response.extract_utf8string(true).get();
             auto parsed_json = json_dump.empty() ? nlohmann::json{} : nlohmann::json::parse(json_dump);
-            discord::wss_url = utility::string{parsed_json.at("url")};
             return parsed_json;
         }
         default: {
@@ -39,20 +38,38 @@ pplx::task<nlohmann::json> get_wss(const std::string &token)
     });
 }
 
-pplx::task<void> send_payload(const discord::payload &payload)
+pplx::task<void>
+send_payload(const payload &payload, std::string &wss_url)
+/**
+ * @brief: sends the payload via websocket
+ */
 {
-  using wss = web::websockets;
+  websocket_outgoing_message msg;
   auto packaged_json = package(payload);
-  discord::wss_client.connect(wss_url).then([](){}).wait();
-  wss::websocket_outgoing_message msg;
-  std::cout << packaged_json.to_string() < std::endl;
-  wss_client.send(msg);
-  return wss_client.recieve().then([&](wss::websocket_incoming_message msg) {
-      std::cout << msg.extract_string() std::endl;
+  std::cout << packaged_json.dump() << std::endl;
+  // before sending a payload, send empty message so that we can
+  // connect to the websocket api
+  // TODO make sure wss_url is correct encoding
+  client.connect(wss_url).then([]() {
+      std::cout << "finished connecting" << std::endl;
+      });
+  // append json headers created from the payload
+  /*
+  for(auto &e : package(payload)) {
+    std::cout << e.first() << " " << e.second() << std::endl;
+  }*/
+  std::cout << package(payload).dump() << std::endl;
+  client.send(msg);
+  return client.receive().then([](websocket_incoming_message msg) {
+      std::cout << msg.extract_string().get() << std::endl;
       });
 }
 
-nlohmann::json package(const discord::payload &payload)
+nlohmann::json
+package(const payload &payload)
+/**
+ * @brief: packages the payload into a readable input for the web request
+ */
 {
   return {
     {"op", payload.op},

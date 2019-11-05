@@ -1,13 +1,14 @@
-#include "bot.hpp"
-
-#include <nlohmann/json.hpp>
-#include <cpprest/http_client.h>
-#include <string>
-#include <cstdint>
-
 #pragma once
 #ifndef __DISCORD_HPP__
 #define __DISCORD_HPP__
+
+#include "bot.hpp"
+
+#include <nlohmann/json.hpp>
+#include <cpprest/ws_client.h>
+#include <cpprest/http_client.h>
+#include <string>
+#include <cstdint>
 
 namespace discord
 {
@@ -33,16 +34,28 @@ namespace discord
     std::string t;
 
     public:
-      payload(opcodes op, std::unordered_map<std::string, std::string> d, int s = 0, std::string t = "null"): op{op}, d{d}, s{s}, t{t};
+      payload(opcodes op, std::unordered_map<std::string, std::string> d, int s = 0, std::string t = "null") : op{op}, d{d}, s{s}, t{t} {};
   } payload;
 
-  // should be obtained during HTTP gateway
-  extern web::websockets::client wss_client;
-  extern int sharding;
-  extern uint64_t snowflake;
-}
+  class Bot {
+    public:
+      std::string token;
+      char ref;
 
-pplx::task<nlohmann::json> get_wss(const std::string &);
-nlohmann::json package(const discord::payload&);
-pplx::task<void> send_payload(const discord::payload &payload)
+      Bot(std::string, char);
+      Bot() : ref{'\0'}, token{std::string{"."}} {};
+      int run();
+      void login(const std::string &);
+  };
+
+  typedef web::websockets::client::websocket_client wss_client;
+  typedef web::websockets::client::websocket_outgoing_message websocket_outgoing_message;
+  typedef web::websockets::client::websocket_incoming_message websocket_incoming_message;
+  typedef uint64_t snowflake_t;
+  // should be obtained during HTTP gateway
+  extern Bot pearlbot;
+  extern int sharding;
+  extern snowflake_t snowflake;
+  extern wss_client client;
+}
 #endif

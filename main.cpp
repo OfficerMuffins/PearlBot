@@ -1,12 +1,6 @@
 #include "discord.hpp"
 #include "bot.hpp"
 
-using namespace discord;
-
-namespace discord {
-  Bot pearlbot;
-}
-
 int
 main()
 {
@@ -15,6 +9,6 @@ main()
   std::ifstream txt_file{"token.txt"};
   std::getline(txt_file, token);
   // make a connection
-  pearlbot = {token, '#'};
+  discord::Bot pearlbot{token, '#'};
   return pearlbot.run();
 }
