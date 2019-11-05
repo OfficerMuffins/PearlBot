@@ -1,7 +1,7 @@
 #include "utils.hpp"
+#include "discord.hpp"
 
-void extendJson(nlohmann::json &j1, const nlohmann::json &j2) {
-  for (const auto &j : nlohmann::json::iterator_wrapper(j2)) {
-    j1[j.key()] = j.value();
-  }
+namespace discord {
+  payload::payload(opcodes op, nlohmann::json d, int s, std::string t) :
+    op{op}, d{d}, s{s}, t{t} {;}
 }

@@ -4,7 +4,10 @@
 
 namespace discord {
   // TODO does this do what I think it does?
-  Bot::Bot(std::string token, char ref) : token{U(token)}, ref{ref} {}
+  Bot::Bot(std::string token, char ref) : token{U(token)}, ref{ref} {
+    connection.set_token(this->token);
+  }
+
   Bot::Bot() { Bot(".", '\0'); }
 
   int Bot::run()
@@ -19,8 +22,8 @@ namespace discord {
   //retrieve a response from the websocket
   {
     try {
-      connection.handle_gateway(token);
-      connection.handshake(token);
+      connection.handle_gateway();
+      connection.handshake();
     } catch (int e) {
       std::cout << "Failed to connect. Error code with HTTP code: " << e << std::endl;
       exit(1);

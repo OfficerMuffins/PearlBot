@@ -33,17 +33,18 @@ namespace discord
     HEARTBEAT_ACK = 11
   } opcodes;
 
-  typedef struct payload {
-    opcodes op;
-    nlohmann::json d;
-    // last 2 are only used for opcode 10
-    int s;
-    std::string t;
+  class payload {
+    friend class Connection;
 
-    public:
-      payload(opcodes op, int, std::string, nlohmann::json);
-      payload(opcodes op);
-  } payload;
+    private:
+      opcodes op;
+      nlohmann::json d;
+      // last 2 are only used for opcode 10
+      int s;
+      std::string t;
+
+      payload(opcodes op, nlohmann::json = {{"d", "null"}}, int = 0, std::string = "null");
+  };
 
   class Connection {
     typedef enum state {
@@ -69,25 +70,26 @@ namespace discord
       std::thread heartbeat_thread;
       snowflake_t snowflake;
       bool compress; // only supports zlib stream for now
-      std::string token;
       int session_id;
       int last_sequence_data;
 
-    public:
-      Connection(encoding, bool, std::string, state);
-      Connection();
-      pplx::task<nlohmann::json> get_wss(const std::string &);
+      pplx::task<nlohmann::json> get_wss();
       nlohmann::json package(const payload&);
       pplx::task<nlohmann::json> send_payload(const nlohmann::json &);
+
+    public:
+      std::string token;
+
+      Connection(bool, state = DEAD, encoding = JSON);
+      Connection();
       void end();
       void pulse();
-      void handle_gateway(const std::string&);
-      void handshake(const std::string &);
+      void handle_gateway();
+      void handshake();
+      void set_token(std::string);
   };
 
   class Bot {
-    friend class connection;
-
     private:
       std::string token;
       char ref;

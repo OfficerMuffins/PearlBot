@@ -7,18 +7,15 @@
 #include <string>
 
 namespace discord {
-  payload::payload(opcodes op, int s, std::string t, nlohmann::json d) : op{op}, d{d}, s{s}, t{t} {;}
-  payload::payload(opcodes op) { payload(op, 0, "null", {}); }
+  Connection::Connection(bool compress, state status, encoding enc)
+    : status{status}, encoding_type{enc}, compress{compress} {;}
 
-  Connection::Connection(encoding enc, bool compress, std::string uri, state state) :
-    status{state}, encoding_type{enc}, compress{compress}, uri{uri} {;}
+  Connection::Connection() { Connection(false); }
 
-  Connection::Connection()
-  {
-    Connection(Connection::encoding::JSON, false, "", DEAD);
-  }
+  void Connection::set_token(std::string token) { this->token = token; };
 
-  pplx::task<nlohmann::json> Connection::get_wss(const std::string &token)
+
+  pplx::task<nlohmann::json> Connection::get_wss()
   /**
    * @brief: grab wss url from discord HTTP response
    */
@@ -68,35 +65,6 @@ namespace discord {
       });
   }
 
-  nlohmann::json Connection::package(const payload &payload)
-  /**
-   * @brief: packages the payload into a readable input for the web request
-   */
-  {
-    nlohmann::json data;
-    data =
-    {
-      {"op", payload.op},
-      {"s", payload.s},
-      {"t", payload.t}
-    };
-    switch(payload.op) {
-      case(IDENTIFY):
-        extendJson(data,
-            { "d",
-              {
-                { "token", token },
-                { "session_id", session_id },
-                { "seq", last_sequence_data }
-              }
-            });
-        break;
-      default:
-        extendJson(data, {"d" , nullptr});
-    }
-    return data;
-  }
-
   void Connection::pulse()
   /**
    * @brief: sends a heartbeat payload
@@ -112,6 +80,12 @@ namespace discord {
   }
 
   void Connection::end()
+  /**
+   * @brief: ends the connection with the websocket
+   *
+   * Declares the state dead which forces heartbeating to stop and join the main thread.
+   * Once all threads have been joined, the client closes.
+   */
   {
     status = state::DEAD;
     /*
@@ -123,16 +97,16 @@ namespace discord {
     client.close().wait();
   }
 
-  void Connection::handle_gateway(const std::string &token)
+  void Connection::handle_gateway()
   {
     nlohmann::json dump;
     // should contain wss url, only expected field is the url field
-    dump = get_wss(token).get();
+    dump = get_wss().get();
     // FIXME hardcoded for now
     uri = dump.value("url", "\0") + "/?v=6&encoding=json";
   }
 
-  void Connection::handshake(const std::string &token)
+  void Connection::handshake()
   {
     nlohmann::json dump;
     // send an empty message so that we can obtain a heartbeat interval
@@ -141,26 +115,55 @@ namespace discord {
         }).wait();
     dump = send_payload(package({HELLO})).get();
     heartbeat = dump["d"]["heartbeat_interval"];
+    // the first identify payload is unique
+    dump = send_payload(
+        {
+          {"d",{
+            { "token", token },
+              { "properties", {
+                  { "$os", "linux" },
+                  { "$browser", "PearlBot" },
+                  { "$device", "PearlBot" }}
+              },
+            { "compress", false },
+            { "large_threshold", 250 }}
+          },
+          {"s", 0},
+          {"op", IDENTIFY},
+          {"t", "null"}
+        }).get();
     // set the state of the connection so that we can start heartbeating
     status = state::ACTIVE;
-    // now we begin communication with the gateway
-    dump = send_payload(package({IDENTIFY, 0, "null",
-          { "d",
-            {
-              { "token", token },
-                { "properties",
-                  {
-                    { "$os", "linux" },
-                    { "$browser", "PearlBot" },
-                    { "$device", "PearlBot" }
-                  }
-                },
-              { "compress", false },
-              { "large_threshold", 250 }
-            }
-          }
-        })).get();
     heartbeat_thread = std::thread{ &Connection::pulse, this };
     while(1);
+  }
+
+  nlohmann::json Connection::package(const payload &payload)
+  /**
+   * @brief: packages the payload into a readable input for the web request
+   */
+  {
+    nlohmann::json data =
+    {
+      {"op", payload.op},
+      {"s", payload.s},
+      {"t", payload.t}
+    };
+    switch(payload.op) {
+      case(IDENTIFY):
+        data.update(
+          {
+            {"d", {
+                { "token", token },
+                { "session_id", session_id },
+                { "seq", last_sequence_data }
+              }
+            }
+          });
+        break;
+      default:
+        data.update(payload.d);
+    }
+    return data;
   }
 }

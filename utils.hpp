@@ -2,11 +2,8 @@
 #ifndef __UTILS_HPP__
 #define __UTILS_HPP__
 
+#include "discord.hpp"
 #include <nlohmann/json.hpp>
-#include <cpprest/ws_client.h>
-#include <cpprest/http_client.h>
-#include <string>
-#include <cstdint>
 
 //class CCasablancaClientErrorCode
 //{
@@ -74,5 +71,5 @@
 //    int _errCode;
 //};
 
-void extendJson(nlohmann::json &, const nlohmann::json &);
+nlohmann::json package(const discord::payload &payload);
 #endif
