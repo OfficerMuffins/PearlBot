@@ -50,17 +50,18 @@ namespace discord {
    * @brief: sends the payload via websocket
    */
   {
+    client_lock.lock();
     websocket_outgoing_message out_msg;
     out_msg.set_utf8_message(payload.dump());
-    std::cout << "Sending " << payload.dump() << std::endl;
     // before sending a payload, send empty message so that we can
     // connect to the websocket api
     // append json headers created from the payload
     client.send(out_msg).wait();
-    return client.receive().then([](websocket_incoming_message msg) {
+    return client.receive().then([this](websocket_incoming_message msg) {
+        this->client_lock.unlock();
         std::string out = msg.extract_string().get();
-        std::cout << "message: " << out << std::endl;
         auto parsed_json = out.empty() ? nlohmann::json{} : nlohmann::json::parse(out);
+        std::cout << "message: " << parsed_json.dump(4) << std::endl;
         return parsed_json;
       });
   }
@@ -71,11 +72,11 @@ namespace discord {
    */
   {
     while(status == state::ACTIVE) {
-      std::this_thread::sleep_for(std::chrono::milliseconds{heartbeat - 5});
       auto resp = send_payload(package({HEARTBEAT})).get();
       if(resp["op"] == HEARTBEAT_ACK) {
         std::cout << "received an acknowledge!" << std::endl;
       }
+      std::this_thread::sleep_for(std::chrono::milliseconds{heartbeat - 5});
     }
   }
 
@@ -114,28 +115,25 @@ namespace discord {
         std::cout << "Connected to " << this->uri << std::endl;
         }).wait();
     dump = send_payload(package({HELLO})).get();
-    heartbeat = dump["d"]["heartbeat_interval"];
+    heartbeat = dump["d"]["heartbeat_interval"].get<int>();
     // the first identify payload is unique
+    status = state::ACTIVE;
+    heartbeat_thread = std::thread{ &Connection::pulse, this };
+    std::this_thread::sleep_for(std::chrono::seconds{3});
+    std::cout << "sending IDENTIFY" << std::endl;
     dump = send_payload(
         {
           {"d",{
             { "token", token },
-              { "properties", {
-                  { "$os", "linux" },
-                  { "$browser", "PearlBot" },
-                  { "$device", "PearlBot" }}
-              },
-            { "compress", false },
-            { "large_threshold", 250 }}
+            { "properties", {
+              { "$os", "linux" },
+              { "$browser", "PearlBot" },
+              { "$device", "PearlBot" }}
+            },
+            { "compress", false }}
           },
-          {"s", 0},
           {"op", IDENTIFY},
-          {"t", "null"}
         }).get();
-    // set the state of the connection so that we can start heartbeating
-    status = state::ACTIVE;
-    heartbeat_thread = std::thread{ &Connection::pulse, this };
-    while(1);
   }
 
   nlohmann::json Connection::package(const payload &payload)
@@ -146,8 +144,6 @@ namespace discord {
     nlohmann::json data =
     {
       {"op", payload.op},
-      {"s", payload.s},
-      {"t", payload.t}
     };
     switch(payload.op) {
       case(IDENTIFY):

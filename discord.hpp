@@ -63,7 +63,7 @@ namespace discord
       encoding encoding_type;
       std::string uri;
       wss_client client;
-      std::mutex buffer_lock;
+      std::mutex client_lock;
 
       int heartbeat;
       int sharding;
