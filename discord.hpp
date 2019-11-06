@@ -43,10 +43,12 @@ namespace discord
       int s;
       std::string t;
 
-      payload(opcodes op, nlohmann::json = {{"d", "null"}}, int = 0, std::string = "null");
+      payload(opcodes op, nlohmann::json = {{"d", nullptr}}, int = 0, std::string = "");
   };
 
   class Connection {
+    friend class Bot;
+
     typedef enum state {
       ACTIVE,
       SLEEP,
@@ -72,13 +74,11 @@ namespace discord
       bool compress; // only supports zlib stream for now
       int session_id;
       int last_sequence_data;
+      std::string token;
 
       pplx::task<nlohmann::json> get_wss();
       nlohmann::json package(const payload&);
-      pplx::task<nlohmann::json> send_payload(const nlohmann::json &);
-
-    public:
-      std::string token;
+      pplx::task<nlohmann::json> send_payload(const nlohmann::json&);
 
       Connection(bool, state = DEAD, encoding = JSON);
       Connection();
@@ -86,7 +86,6 @@ namespace discord
       void pulse();
       void handle_gateway();
       void handshake();
-      void set_token(std::string);
   };
 
   class Bot {

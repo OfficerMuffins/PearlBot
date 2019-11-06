@@ -10,7 +10,7 @@ class Bot {
 
   public:
     Bot(std::string, char);
-    Bot() : ref{'\0'}, token{std::string{"."}} {};
+    Bot();
     int run();
     void login(const std::string &);
 };

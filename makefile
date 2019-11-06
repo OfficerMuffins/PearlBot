@@ -1,5 +1,5 @@
 CXX = clang++
-CXX_FLAGS = -O2 -g -std=c++17 -Wc++17-extensions
+CXX_FLAGS = -O0 -g -std=c++17 -Wc++17-extensions -Wall
 LIBS = -lpthread \
        -lcrypto \
        -lssl \

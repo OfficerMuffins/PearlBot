@@ -12,9 +12,6 @@ namespace discord {
 
   Connection::Connection() { Connection(false); }
 
-  void Connection::set_token(std::string token) { this->token = token; };
-
-
   pplx::task<nlohmann::json> Connection::get_wss()
   /**
    * @brief: grab wss url from discord HTTP response
@@ -53,6 +50,7 @@ namespace discord {
     client_lock.lock();
     websocket_outgoing_message out_msg;
     out_msg.set_utf8_message(payload.dump());
+    std::cout << payload.dump(4) << std::endl;
     // before sending a payload, send empty message so that we can
     // connect to the websocket api
     // append json headers created from the payload
@@ -117,9 +115,6 @@ namespace discord {
     dump = send_payload(package({HELLO})).get();
     heartbeat = dump["d"]["heartbeat_interval"].get<int>();
     // the first identify payload is unique
-    status = state::ACTIVE;
-    heartbeat_thread = std::thread{ &Connection::pulse, this };
-    std::this_thread::sleep_for(std::chrono::seconds{3});
     std::cout << "sending IDENTIFY" << std::endl;
     dump = send_payload(
         {
@@ -133,7 +128,11 @@ namespace discord {
             { "compress", false }}
           },
           {"op", IDENTIFY},
+          {"s", nullptr},
+          {"t", nullptr},
         }).get();
+    status = state::ACTIVE;
+    heartbeat_thread = std::thread{ &Connection::pulse, this };
   }
 
   nlohmann::json Connection::package(const payload &payload)
@@ -145,6 +144,18 @@ namespace discord {
     {
       {"op", payload.op},
     };
+    // nlohmann::json expects nullptr to insert null
+    if(payload.s == 0) {
+      data.update( { {"s", nullptr} } );
+    } else {
+      data.update( { {"s", payload.s} } );
+    }
+
+    if(payload.t.empty()) {
+      data.update( { {"t", nullptr} } );
+    } else {
+      data.update( { {"t", payload.t} } );
+    }
     switch(payload.op) {
       case(IDENTIFY):
         data.update(

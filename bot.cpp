@@ -5,15 +5,14 @@
 namespace discord {
   // TODO does this do what I think it does?
   Bot::Bot(std::string token, char ref) : token{U(token)}, ref{ref} {
-    connection.set_token(this->token);
+    connection.token = this->token;
   }
 
-  Bot::Bot() { Bot(".", '\0'); }
+  Bot::Bot() { Bot(nullptr, '\0'); }
 
   int Bot::run()
   {
     try {
-      std::cout << "printing" << std::endl;
       login();
     } catch (int e) {
       std::cout << "Failed to connect. Error code with HTTP code: " << e << std::endl;
