@@ -49,16 +49,18 @@ namespace discord {
   {
     client_lock.lock();
     websocket_outgoing_message out_msg;
-    out_msg.set_utf8_message(payload.dump());
+    out_msg.set_utf8_message(payload.dump(4));
     // before sending a payload, send empty message so that we can
     // connect to the websocket api
     // append json headers created from the payload
-    try {
-      client.send(out_msg).wait();
-    } catch (web::websockets::client::websocket_exception& e) {
-      std::cout << "WS Exception in send: " << e.what() << std::endl;
+    if(payload != nullptr) {
+      try {
+        client.send(out_msg).wait();
+      } catch (web::websockets::client::websocket_exception& e) {
+        std::cout << "WS Exception in send: " << e.what() << std::endl;
+      }
     }
-    std::cout << "Sending " << payload.dump(4) << std::endl;
+    std::cout << "Sending " << payload.dump() << std::endl;
     return client.receive().then([this](websocket_incoming_message msg) {
         this->client_lock.unlock();
         std::string out = msg.extract_string().get();
@@ -116,11 +118,10 @@ namespace discord {
     client.connect(uri).then([this]() {
         std::cout << "Connected to " << this->uri << std::endl;
         }).wait();
-    dump = send_payload(package({HELLO})).get();
+    dump = send_payload(nullptr).get();
     heartbeat = dump["d"]["heartbeat_interval"].get<int>();
     // the first identify payload is unique
     status = state::ACTIVE;
-    std::this_thread::sleep_for(std::chrono::seconds{2});
     std::cout << "sending IDENTIFY" << std::endl;
     dump = send_payload(
         {
@@ -128,8 +129,8 @@ namespace discord {
             { "token", token },
             { "properties", {
               { "$os", "linux" },
-              { "$browser", "PearlBot" },
-              { "$device", "PearlBot" }}
+              { "$browser", "Discord" },
+              { "$device", "Discord" }}
             },
             { "compress", false }}
           },
