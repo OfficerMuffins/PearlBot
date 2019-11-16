@@ -14,7 +14,7 @@
 namespace discord
 {
 
-  typedef web::websockets::client::websocket_client wss_client;
+  typedef web::websockets::client::websocket_callback_client wss_client;
   typedef web::websockets::client::websocket_outgoing_message websocket_outgoing_message;
   typedef web::websockets::client::websocket_incoming_message websocket_incoming_message;
   typedef uint64_t snowflake_t;
@@ -80,8 +80,8 @@ namespace discord
       nlohmann::json package(const payload&);
       pplx::task<nlohmann::json> send_payload(const nlohmann::json&);
 
-      Connection(bool, state = DEAD, encoding = JSON);
-      Connection();
+      explicit Connection(bool, state = DEAD, encoding = JSON);
+      explicit Connection();
       void end();
       void pulse();
       void handle_gateway();

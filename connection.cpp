@@ -8,7 +8,10 @@
 
 namespace discord {
   Connection::Connection(bool compress, state status, encoding enc)
-    : status{status}, encoding_type{enc}, compress{compress} {;}
+    : status{status}, encoding_type{enc}, compress{compress}
+  {
+    client.set_message_handler(&event_handler);
+  }
 
   Connection::Connection() : Connection(false) {;}
 
@@ -70,6 +73,22 @@ namespace discord {
       });
   }
 
+  void Connection::event_handler(websocket_incoming_message msg)
+  {
+    std::string utf8_msg = msg.extract_string().get();
+    auto parsed_json = utf8_msg.empty() ? throw "oh no" : nlohmann::json::parse(utf8_msg);
+    payload msg = unpack(msg);
+    switch(payload.op) {
+      case(HELLO):
+        break;
+      case()
+    }
+  }
+
+  payload Connection::unpack(nlohmann::json msg) {
+    return { msg["op"].get<int>(), msg["d"], msg["s"].get<int>(), msg["t"].get<std::string>() };
+  }
+
   void Connection::pulse()
   /**
    * @brief: sends a heartbeat payload
@@ -109,34 +128,19 @@ namespace discord {
     dump = get_wss().get();
     // FIXME hardcoded for now
     uri = dump.value("url", "\0") + "/?v=6&encoding=json";
-  }
-
-  void Connection::handshake()
-  {
     nlohmann::json dump;
     // send an empty message so that we can obtain a heartbeat interval
     client.connect(uri).then([this]() {
         std::cout << "Connected to " << this->uri << std::endl;
         }).wait();
-    dump = send_payload(nullptr).get();
-    heartbeat = dump["d"]["heartbeat_interval"].get<int>();
-    // the first identify payload is unique
-    status = state::ACTIVE;
-    std::cout << "sending IDENTIFY" << std::endl;
-    dump = send_payload(
-        {
-          {"d",{
-            { "token", token },
-            { "properties", {
-              { "$os", "linux" },
-              { "$browser", "Discord" },
-              { "$device", "Discord" }}
-            },
-            { "compress", false }}
-          },
-          {"op", IDENTIFY},
-        }).get();
+  }
+
+  void Connection::run()
+  {
+    handle_gateway();
     heartbeat_thread = std::thread{ &Connection::pulse, this };
+    while(true) {
+    }
   }
 
   nlohmann::json Connection::package(const payload &payload)
@@ -171,5 +175,33 @@ namespace discord {
         data.update(payload.d);
     }
     return data;
+  }
+
+  void Connection::handle_hello()
+  {
+    dump = send_payload(nullptr).get();
+    heartbeat = dump["d"]["heartbeat_interval"].get<int>();
+    // the first identify payload is unique
+    dump = send_payload(
+        {
+          {"d",{
+            { "token", token },
+            { "properties", {
+              { "$os", "linux" },
+              { "$browser", "Discord" },
+              { "$device", "Discord" }}
+            },
+            { "compress", false }}
+          },
+          {"op", IDENTIFY},
+        }).get();
+    status = state::ACTIVE;
+    session_id = dump["d"]["session_id"];
+  }
+
+  void Connection::handle_ready()
+  {
+    status = state::ACTIVE;
+    session_id = dump["d"]["session_id"];
   }
 }
