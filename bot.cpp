@@ -3,17 +3,13 @@
 #include <iostream>
 
 namespace discord {
-  // TODO does this do what I think it does?
-  Bot::Bot(std::string token, char ref) : token{U(token)}, ref{ref} {
+  Bot::Bot(std::string token, char ref) : token{U(token)}, ref{ref}, connection(false, ACTIVE, JSON) {
     connection.token = this->token;
+    connection.init();
   }
 
-  Bot::Bot() { Bot(nullptr, '\0'); }
-
-  int Bot::run()
-  {
+  int Bot::run() {
     try {
-      login();
     } catch (int e) {
       std::cout << "Failed to connect. Error code with HTTP code: " << e << std::endl;
     } catch(const boost::system::system_error& ex) {
@@ -23,14 +19,11 @@ namespace discord {
     } catch(const std::exception& e) {
       std::cout << e.what() << std::endl;
     }
-    connection.end();
+    while(1);
     return 0;
   }
 
-  void Bot::login()
   //retrieve a response from the websocket
-  {
-    connection.handle_gateway();
-    connection.handshake();
+  void Bot::login() {
   }
 }

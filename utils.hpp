@@ -70,6 +70,4 @@
 //  private:
 //    int _errCode;
 //};
-
-nlohmann::json package(const discord::payload &payload);
 #endif
