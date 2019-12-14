@@ -6,20 +6,22 @@
 #include <iostream>
 #include <string>
 #include <functional>
+#include <future>
 
 namespace discord {
   // using default settings
   Connection::Connection() : Connection(false) {;}
 
-  Connection::Connection(bool compress, state status, encoding enc) : status{status}, encoding_type{enc}, compress{compress} {}
+  Connection::Connection(bool compress, state status, encoding enc) :
+    status{status}, encoding_type{enc}, compress{compress} {}
 
-  void Connection::init() {
+  void Connection::run() {
     using namespace std::placeholders;
     nlohmann::json dump;
     std::string uri;
 
-    init_handles(); // assign the generators
-    client.set_message_handler(std::bind(Connection::event_handler, _1, this));
+    // message handler can't be member function
+    client.set_message_handler([this](const websocket_incoming_message &msg){ this->handle_callback(msg); });
     // should contain wss uri from the http gateway, only expected field is the uri field
     dump = get_wss().get();
     // FIXME hardcoded for now
@@ -27,36 +29,30 @@ namespace discord {
     uri = dump.value("url", "\0") + "/?v=6&encoding=json";
     std::cout << "connecting" << std::endl;
     // connect to the gateway, expect a HELLO packet right after
+    status = NEW;
     client.connect(uri).then([]() {});
+
+    std::promise<void> p;
+    std::future<void> f = p.get_future();
+    while(true) { // continually try to maintain a connection
+      try {
+        heartbeat_thread = std::thread([&]{ this->heartbeat(p); });
+        heartbeat_thread.join(); // if returns, we have disconnected
+        f.get(); // will throw exception
+      } catch(const std::runtime_error &err) { // disconnected, send a resume payload
+        std::cout << "disconnected!" << std::endl;
+        status = DISCONNECTED;
+        reconnect();
+      } catch(const std::exception &e) { // unexpected exception, time to leave
+        std::cout << e.what() << std::endl;
+        throw std::runtime_error("Unexpected exception during heartbeat");
+      }
+    }
   }
 
-  /**
-   * @brief: grab wss url from discord HTTP response
-   */
-  pplx::task<nlohmann::json> Connection::get_wss() {
-    // required headers the first request
-    web::http::http_request request(web::http::methods::GET);
-    // User agent fields are required for custom implemented APIs
-    request.headers().add(U("Authorization"), utility::conversions::to_string_t("Bot " + token));
-    request.headers().add(U("Content-Type"), U("application/json"));
-    request.headers().add(U("User-Agent"), U("DiscordBot https://github.com/OfficerMuffins/Pearlbot 1.0.0"));
-    // GET is the default method, but let's be explicit
-    // params: base_uri, config
-    web::http::client::http_client client{ {U("https://discordapp.com/api/v6/gateway")}};
-    return client.request(request).then([](web::http::http_response response) -> nlohmann::json {
-        int code = response.status_code();
-        switch(code) {
-          case(200): {
-              // TODO should error if the json dump is empty
-              std::string json_dump = response.extract_utf8string(true).get();
-              auto parsed_json = json_dump.empty() ? nlohmann::json{} : nlohmann::json::parse(json_dump);
-              return parsed_json;
-          }
-          default: {
-              throw code;
-          }
-        }
-      });
+  void Connection::reconnect() {
+    client.close(wss_close_status::abnormal_close);
+    client.connect(uri).then([]() {});
   }
 
   /**
@@ -66,41 +62,65 @@ namespace discord {
     websocket_outgoing_message out_msg;
     out_msg.set_utf8_message(payload.dump(4));
     std::cout << "Sending " << payload.dump(4) << std::endl;
+    client_lock.lock();
     client.send(out_msg);
+    client_lock.unlock();
     return;
   }
 
-  // handles the event gateway
-  void Connection::event_handler(const websocket_incoming_message &msg, Connection *instance) {
+  /**
+   * @brief: client callback handler
+   *
+   * Handles incoming payloads by using the provided opcode as key.
+   */
+  void Connection::handle_callback(const websocket_incoming_message &msg) {
+    //assert(status != DISCONNECTED); // we shouldn't be receiving packets when disconnected
     std::string utf8_msg = msg.extract_string().get();
     auto parsed_json = utf8_msg.empty() ? throw "oh no" : nlohmann::json::parse(utf8_msg);
     std::cout << "message: " << parsed_json.dump(4) << std::endl;
     payload payload_msg = unpack(parsed_json);
-    (instance->*(instance->handlers[payload_msg.op]))(payload_msg);
+    (this->*(this->handlers[payload_msg.op]))(payload_msg);
   }
 
   /**
    * @brief: sends a heartbeat payload at heartbeat intervals
    *
    * Discord API requires that a heartbeat payload be sent at heartbeat_interval intervals.
-   * The handlers does this and sleeps for the heartbeat interval amount of time.
+   * The number of heartbeat is kept in a variable heartbeat_ticks which is incremented everytime a
+   * heartbeat is sent and decrement when a HEARTBEAT_ACK is received, therefore it should always be
+   * 0 at the start of sending the heartbeat;
    *
    * @bug: how to make sure that the heartbeat thread and the other threads share clients properly?
+   * @bug: concurrency issues with heartbeat?
    */
-  void Connection::heartbeat() {
+  void Connection::heartbeat(std::promise<void> &p) {
     // FIXME not sure what to get for sequence data
-    auto f = [](Connection *instance, int interval)  {
-      while(instance->status == ACTIVE) {
-        auto x = std::chrono::steady_clock::now() + std::chrono::milliseconds(interval);
+    try {
+      while(status == ACTIVE) {
+        // serialize the main thread which can be sending heartbeats in response
+        heartbeat_lock.lock();
+        if(heartbeat_ticks != 0) {
+          heartbeat_lock.unlock();
+          throw std::runtime_error("did not receive heartbeat ack");
+        }
+        heartbeat_ticks++; // increment the ticks to show that sent out a heartbeat
+        // heartbeat_interval is maximum amount of time and there's no punishment for
+        // heartbeating, so send it a little earlier
+        auto x = std::chrono::steady_clock::now() +
+          std::chrono::milliseconds(heartbeat_interval);
         send_payload(
             {
               { "op", HEARTBEAT },
-              { "d", instance->last_sequence_data },
+              { "d", last_sequence_data },
             });
+        heartbeat_lock.unlock();
         std::this_thread::sleep_until(x);
       }
-    };
-    heartbeat_thread(f, this, heartbeat_interval).detach();
+      return;
+    } catch(const std::exception &err) {
+      p.set_exception(std::current_exception());
+      return;
+    }
   }
 
   /**
@@ -109,14 +129,9 @@ namespace discord {
    * Declares the state dead which forces heartbeating to stop and join the main thread.
    * Once all threads have been joined, the client closes.
    */
-  void Connection::end() {
+  void Connection::close() {
     status = state::DEAD;
-    /*
-    for(std::vector<std::thread>::iterator it = threads.begin();
-        it != threads.end();
-        it++)
-      it->join();*/
-    //heartbeat_thread.join();
+    heartbeat_thread.join();
     client.close();
   }
 }

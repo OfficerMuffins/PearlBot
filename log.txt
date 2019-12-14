@@ -1,0 +1,25 @@
+connecting
+handler called
+message: {
+    "d": {
+        "_trace": [
+            "[\"gateway-prd-main-8g38\",{\"micros\":0.0}]"
+        ],
+        "heartbeat_interval": 41250
+    },
+    "op": 10,
+    "s": null,
+    "t": null
+}
+Sending {
+    "d": {
+        "compress": false,
+        "properties": {
+            "$browser": "Discord",
+            "$device": "Discord",
+            "$os": "linux"
+        },
+        "token": "NjMzNzc3Njc4MzAyMDUyMzU2.XcMK2w.5Me12pQG-QJC0XzEu3IfavmPTJw"
+    },
+    "op": 2
+}

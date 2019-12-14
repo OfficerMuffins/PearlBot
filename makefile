@@ -9,7 +9,8 @@ LIBS = -lpthread \
 CPP_FILES = main.cpp\
 	    bot.cpp\
 	    connection.cpp\
-	    utils.cpp
+	    utils.cpp\
+	    gateway.cpp
 
 build:
 	$(CXX) $(CXX_FLAGS) $(CPP_FILES) -o PearlBot $(LIBS)

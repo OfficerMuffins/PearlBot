@@ -10,9 +10,11 @@
 #include <string>
 #include <cstdint>
 #include <thread>
+#include <future>
 
 #define HANDLE_DECL(op) void handle_##op(const payload &)
 #define HANDLE_ENTRY(op) { op, &Connection::handle_##op }
+#define EVENT_ENTRY(t) { "##t", &Connection::event_##t }
 
 namespace discord
 {
@@ -20,6 +22,7 @@ namespace discord
   typedef web::websockets::client::websocket_callback_client wss_client;
   typedef web::websockets::client::websocket_outgoing_message websocket_outgoing_message;
   typedef web::websockets::client::websocket_incoming_message websocket_incoming_message;
+  typedef web::websockets::client::websocket_close_status wss_close_status;
   typedef uint64_t snowflake_t;
 
   enum opcodes {
@@ -51,8 +54,9 @@ namespace discord
 
   enum state {
     ACTIVE,
-    SLEEP,
-    DEAD
+    DISCONNECTED,
+    DEAD,
+    NEW
   };
 
   enum encoding {
@@ -80,6 +84,7 @@ namespace discord
       int heartbeat_interval;
       int num_shards;
       int shard_id;
+      int heartbeat_ticks;
 
       std::string session_id;
       snowflake_t snowflake;
@@ -88,7 +93,6 @@ namespace discord
       std::string token;
 
       pplx::task<nlohmann::json> get_wss();
-
       void send_payload(const nlohmann::json&);
 
       explicit Connection(bool, state = DEAD, encoding = JSON);
@@ -99,14 +103,18 @@ namespace discord
       static payload unpack(const nlohmann::json msg);
 
       // handlers
-      void init_handles();
-      static void event_handler(const websocket_incoming_message &, Connection *);
-      void end();
-      void pulse();
-      void init();
+      void handle_callback(const websocket_incoming_message &);
+      void close();
+      void heartbeat(std::promise<void> &); // handle heartbeat
+      void reconnect();
+      void run();
 
-      // threading and handling
+      // heartbeat threads
       std::thread heartbeat_thread;
+      std::mutex heartbeat_lock;
+
+      // handles out sending of events at the rate limit
+      std::thread event_thread;
       std::mutex client_lock;
 
       HANDLE_DECL(DISPATCH);
@@ -134,6 +142,33 @@ namespace discord
         HANDLE_ENTRY(HELLO),
         HANDLE_ENTRY(HEARTBEAT_ACK),
       };
+
+      std::unordered_map<std::string, void (Connection::*)(const payload&) events = {
+        EVENT_ENTRY(HELLO),
+        EVENT_ENTRY(READY),
+        EVENT_ENTRY(RESUMED),
+        EVENT_ENTRY(RECONNECT),
+        EVENT_ENTRY(INVALID_SESSION),
+        EVENT_ENTRY(CHANNEL_CREATE),
+        EVENT_ENTRY(CHANNEL_UPDATE),
+        EVENT_ENTRY(CHANNEL_DELETE),
+        EVENT_ENTRY(CHANNEL_PINS_UPDATE),
+        EVENT_ENTRY(GUILD_CREATE),
+        EVENT_ENTRY(GUILD_UPDATE),
+        EVENT_ENTRY(GUILD_DELETE),
+        EVENT_ENTRY(GUILD_BAN_ADD),
+        EVENT_ENTRY(GUILD_BAN_REMOVE),
+        EVENT_ENTRY(GUILD_EMOJIS_UPDATE),
+        EVENT_ENTRY(GUILD_INTEGRATION_UPDATE),
+        EVENT_ENTRY(GUILD_MEMBER_ADD),
+        EVENT_ENTRY(GUILD_MEMBER_REMOVE),
+        EVENT_ENTRY(GUILD_MEMBER_UPDATE),
+        EVENT_ENTRY(GUILD_MEMBER_CHUNK),
+        EVENT_ENTRY(GUILD_ROLE_CREATE),
+        EVENT_ENTRY(GUILD_ROLE_UPDATE),
+        EVENT_ENTRY(GUILD_ROLE_DELETE),
+        EVENT_ENTRY(MESSAGE_CREATE),
+      };
   };
 
   class Bot {
@@ -143,9 +178,8 @@ namespace discord
       Connection connection;
 
     public:
-      explicit Bot(std::string, char);
+      Bot(std::string, char);
       int run();
-      void login();
   };
 
   // should be obtained during HTTP gateway
