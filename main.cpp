@@ -1,5 +1,4 @@
 #include "discord.hpp"
-#include "bot.hpp"
 
 int
 main()

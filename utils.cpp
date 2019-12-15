@@ -1,4 +1,3 @@
-#include "utils.hpp"
 #include "discord.hpp"
 
 namespace discord {

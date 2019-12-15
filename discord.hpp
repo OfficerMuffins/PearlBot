@@ -1,6 +1,4 @@
 #pragma once
-#ifndef __DISCORD_HPP__
-#define __DISCORD_HPP__
 
 #include "bot.hpp"
 #include "utils.hpp"
@@ -97,6 +95,7 @@ namespace discord
       std::string uri;
       bool compress; // only supports zlib stream for now
       wss_client client;
+      std::mutex client_lock;
 
       // important information obtained from server
       int heartbeat_interval;
@@ -117,6 +116,7 @@ namespace discord
 
       // utilities
       std::thread resource_manager; // just manages rate limit for now
+      void manage_resources();
       nlohmann::json package(const payload payload);
       static payload unpack(const nlohmann::json msg);
 
@@ -127,7 +127,7 @@ namespace discord
       void reconnect();
       void run();
 
-      // heartbeat threads
+      // heartbeat threads, keep the connection heartbeating
       std::thread heartbeat_thread;
       std::mutex heartbeat_lock;
 
@@ -164,7 +164,8 @@ namespace discord
       std::mutex event_q_lock;
       int ticks; // counts # of events sent, reset every 60 seconds
       static const unsigned long rate_limit = 120;
-      semaphore rate_sem{ rate_limit }; // moderate the rate limit
+      semaphore rate_sem = {rate_limit}; // moderate the rate limit
+
       EVENT_DECL(HELLO);
       EVENT_DECL(READY);
       EVENT_DECL(RESUMED);
@@ -232,4 +233,3 @@ namespace discord
   // should be obtained during HTTP gateway
   extern Bot pearlbot;
 }
-#endif

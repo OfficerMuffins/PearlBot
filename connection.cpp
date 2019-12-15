@@ -1,5 +1,4 @@
 #include "discord.hpp"
-#include "utils.hpp"
 #include <cpprest/http_client.h>
 #include <cpprest/ws_client.h>
 #include <nlohmann/json.hpp>
@@ -37,9 +36,11 @@ namespace discord {
     std::future<void> f = p.get_future();
     while(true) { // continually try to maintain a connection
       try {
+        resource_manager = std::thread([this] { this->manage_resources(); });
         heartbeat_thread = std::thread([&]{ this->heartbeat(p); });
         event_thread = std::thread([this] { this->manage_events(); });
         heartbeat_thread.join(); // if returns, we have disconnected
+        resource_manager.join();
         event_thread.join(); // disconnects when heartbeating fails
         f.get(); // throw error from the heartbeat thread
       } catch(const std::runtime_error &err) { // disconnected, send a resume payload
@@ -128,14 +129,13 @@ namespace discord {
   }
 
   void Connection::manage_events() {
-    payload p;
     while(status == ACTIVE) {
       event_q_lock.lock();
       if(event_q.empty()) {
         event_q_lock.unlock();
         continue;
       }
-      p = event_q.front();
+      payload p = event_q.front();
       send_payload(package(p));
       event_q.pop();
       event_q_lock.unlock();
@@ -150,9 +150,23 @@ namespace discord {
    * Declares the state dead which forces heartbeating to stop and join the main thread.
    * Once all threads have been joined, the client closes.
    */
+  /*
   void Connection::close() {
     status = state::DEAD;
     heartbeat_thread.join();
     client.close();
+  }*/
+
+  /**
+   * @brief: manages the resources of the connection
+   */
+  void Connection::manage_resources() {
+    while(status == ACTIVE) {
+      // reset the semaphore every minute
+      auto x = std::chrono::steady_clock::now() + std::chrono::seconds(60);
+      std::this_thread::sleep_until(x);
+      rate_sem.reset();
+    }
+    return;
   }
 }

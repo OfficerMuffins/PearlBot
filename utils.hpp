@@ -1,7 +1,4 @@
 #pragma once
-#ifndef __UTILS_HPP__
-#define __UTILS_HPP__
-
 #include "discord.hpp"
 
 #include <nlohmann/json.hpp>
@@ -84,7 +81,7 @@ class semaphore
     unsigned long max_;
 
   public:
-    semaphore(unsigned long max) : max_{max}, count_{max} {;}
+    semaphore(unsigned long max) : count_{max}, max_{max} {;}
 
     void notify() {
       std::lock_guard<decltype(mutex_)> lock(mutex_);
@@ -113,4 +110,3 @@ class semaphore
       count_ = max_;
     }
 };
-#endif

@@ -10,7 +10,8 @@ CPP_FILES = main.cpp\
 	    bot.cpp\
 	    connection.cpp\
 	    utils.cpp\
-	    gateway.cpp
+	    gateway.cpp\
+	    events.cpp
 
 build:
 	$(CXX) $(CXX_FLAGS) $(CPP_FILES) -o PearlBot $(LIBS)
