@@ -87,8 +87,8 @@ namespace discord
 
     private:
       // state variables
-      state status;
-      bool up_to_date;
+      state status = DISCONNECTED;
+      bool up_to_date = true;
 
       // connection settings
       encoding encoding_type;
@@ -98,13 +98,13 @@ namespace discord
       std::mutex client_lock;
 
       // important information obtained from server
-      int heartbeat_interval;
-      int num_shards;
-      int shard_id;
-      int heartbeat_ticks;
+      int heartbeat_interval = 0;
+      int num_shards = 0;
+      int shard_id = 0;
+      int heartbeat_ticks = 0;
       user user_info;
       std::string session_id;
-      int last_sequence_data;
+      int last_sequence_data = 0;
       std::string token;
       guild guild_info;
 
@@ -112,7 +112,7 @@ namespace discord
       void send_payload(const nlohmann::json&);
 
       explicit Connection(bool, state = DISCONNECTED, encoding = JSON);
-      Connection();
+      explicit Connection();
 
       // utilities
       std::thread resource_manager; // just manages rate limit for now

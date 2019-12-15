@@ -4,6 +4,7 @@
 
 namespace discord {
   EVENT_HANDLER(READY) {
+    std::cout << "Ready event found" << std::endl;
     shard_id = msg.d["shard"][0].get<int>();
     num_shards = msg.d["shard"][1].get<int>();
     session_id = msg.d["session_id"].get<std::string>();
@@ -11,6 +12,7 @@ namespace discord {
     //guilds = msg.d["guilds"].get<std::vector>(); TODO
     user_info.id = msg.d["user"]["id"].get<int>();
     user_info.username = msg.d["user"]["username"].get<std::string>();
+    status = ACTIVE;
   }
 
   EVENT_HANDLER(RESUMED) {

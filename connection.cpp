@@ -14,6 +14,11 @@ namespace discord {
   Connection::Connection(bool compress, state status, encoding enc) :
     status{status}, encoding_type{enc}, compress{compress} {}
 
+  /**
+   * @brief: run the connection
+   *
+   * A call to this function is blocking.
+   */
   void Connection::run() {
     using namespace std::placeholders;
     nlohmann::json dump;
@@ -34,14 +39,15 @@ namespace discord {
 
     std::promise<void> p;
     std::future<void> f = p.get_future();
+    while(status == NEW); // give sometime to receive the HELLO event
     while(true) { // continually try to maintain a connection
       try {
-        resource_manager = std::thread([this] { this->manage_resources(); });
+        //resource_manager = std::thread([this] { this->manage_resources(); });
         heartbeat_thread = std::thread([&]{ this->heartbeat(p); });
-        event_thread = std::thread([this] { this->manage_events(); });
+        //event_thread = std::thread([this] { this->manage_events(); });
         heartbeat_thread.join(); // if returns, we have disconnected
-        resource_manager.join();
-        event_thread.join(); // disconnects when heartbeating fails
+        //resource_manager.join();
+        //event_thread.join(); // disconnects when heartbeating fails
         f.get(); // throw error from the heartbeat thread
       } catch(const std::runtime_error &err) { // disconnected, send a resume payload
         std::cout << "disconnected!" << std::endl;
@@ -56,11 +62,14 @@ namespace discord {
 
   void Connection::reconnect() {
     client.close(wss_close_status::abnormal_close);
+    std::cout << uri << std::endl;
     client.connect(uri).then([]() {});
   }
 
   /**
    * @brief: sends the payload via websocket
+   *
+   * @param[in]: payload reference that will be sent
    */
   void Connection::send_payload(const nlohmann::json &payload) {
     websocket_outgoing_message out_msg;
@@ -76,6 +85,8 @@ namespace discord {
    * @brief: client callback handler
    *
    * Handles incoming payloads by using the provided opcode as key.
+   *
+   * @param[in]: incoming message. Use to extract json
    */
   void Connection::handle_callback(const websocket_incoming_message &msg) {
     //assert(status != DISCONNECTED); // we shouldn't be receiving packets when disconnected
@@ -104,10 +115,12 @@ namespace discord {
         // serialize the main thread which can be sending heartbeats in response
         heartbeat_lock.lock();
         if(heartbeat_ticks != 0) {
-          heartbeat_lock.unlock();
+          std::cout << "this is why we disconnected" << std::endl;
           status = DISCONNECTED;
+          heartbeat_lock.unlock();
           throw std::runtime_error("did not receive heartbeat ack");
         }
+        std::cout << "sending heartbeat" << heartbeat_interval << std::endl;
         heartbeat_ticks++; // increment the ticks to show that sent out a heartbeat
         // heartbeat_interval is maximum amount of time and there's no punishment for
         // heartbeating, so send it a little earlier
@@ -119,6 +132,7 @@ namespace discord {
               { "d", last_sequence_data },
             });
         heartbeat_lock.unlock();
+        std::cout << "sleeping" << std::endl;
         std::this_thread::sleep_until(x);
       }
       return;
@@ -128,6 +142,15 @@ namespace discord {
     }
   }
 
+  /**
+   * @brief: manage sending of events
+   *
+   * While the connection is active, ths function manages the sending of events while
+   * implementing rate limiting. This thread uses a semaphore that is decremented everytime
+   * an event is sent to server. The semaphore will block at 0 which means that the connection
+   * is reaching its event rate limit. The function will block until the semaphore is reset by
+   * the resource manager thread.
+   */
   void Connection::manage_events() {
     while(status == ACTIVE) {
       event_q_lock.lock();

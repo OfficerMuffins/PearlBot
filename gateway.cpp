@@ -5,6 +5,7 @@
 namespace discord {
   HANDLE_DEFINE(DISPATCH) {
     try {
+      std::cout << "dispatching" << msg.t << std::endl;
       (this->*(this->events[msg.t]))(msg);
     } catch(const std::exception &e) {
       std::cout << e.what() << " at handling DISPATCH" << std::endl;
@@ -67,7 +68,6 @@ namespace discord {
     // this is the first time we've received a HELLO packet
     if(status == NEW) {
       heartbeat_interval = msg.d["heartbeat_interval"].get<int>();
-      status = state::ACTIVE;
       // the first identify payload is unique
       send_payload(
           {
@@ -92,6 +92,7 @@ namespace discord {
   }
 
   HANDLE_DEFINE(HEARTBEAT_ACK) {
+    std::cout << "ack" << std::endl;
     heartbeat_lock.lock();
     heartbeat_ticks--;
     heartbeat_lock.unlock();
