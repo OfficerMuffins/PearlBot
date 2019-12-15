@@ -3,7 +3,10 @@
 #define __UTILS_HPP__
 
 #include "discord.hpp"
+
 #include <nlohmann/json.hpp>
+#include <mutex>
+#include <condition_variable>
 
 //class CCasablancaClientErrorCode
 //{
@@ -70,4 +73,44 @@
 //  private:
 //    int _errCode;
 //};
+//
+
+class semaphore
+{
+  private:
+    std::mutex mutex_;
+    std::condition_variable condition_;
+    unsigned long count_; // Initialized as locked.
+    unsigned long max_;
+
+  public:
+    semaphore(unsigned long max) : max_{max}, count_{max} {;}
+
+    void notify() {
+      std::lock_guard<decltype(mutex_)> lock(mutex_);
+      ++count_;
+      condition_.notify_one();
+    }
+
+    void wait() {
+      std::unique_lock<decltype(mutex_)> lock(mutex_);
+      while(!count_) // Handle spurious wake-ups.
+        condition_.wait(lock);
+      --count_;
+    }
+
+    bool try_wait() {
+      std::lock_guard<decltype(mutex_)> lock(mutex_);
+      if(count_) {
+        --count_;
+        return true;
+      }
+      return false;
+    }
+
+    void reset() {
+      std::lock_guard<decltype(mutex_)> lock(mutex_);
+      count_ = max_;
+    }
+};
 #endif

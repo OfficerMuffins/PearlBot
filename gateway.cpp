@@ -1,10 +1,14 @@
 #include "discord.hpp"
 
 #define HANDLE_DEFINE(op) void Connection::handle_##op(const payload &msg)
-#define EVENT_HANDLER(t) void Connection::handle_event_##t(const payload &msg)
 
 namespace discord {
   HANDLE_DEFINE(DISPATCH) {
+    try {
+      (this->*(this->events[msg.t]))(msg);
+    } catch(const std::exception &e) {
+      std::cout << e.what() << " at handling DISPATCH" << std::endl;
+    }
   }
 
   /**
@@ -50,6 +54,7 @@ namespace discord {
   }
 
   HANDLE_DEFINE(INVALID_SESS) {
+    status = DISCONNECTED;
   }
 
   /**

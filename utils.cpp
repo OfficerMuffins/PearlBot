@@ -23,14 +23,14 @@ namespace discord {
     switch(payload.op) {
       case(IDENTIFY):
         data.update(
-          {
+            {
             {"d", {
-                { "token", token },
-                { "session_id", session_id },
-                { "seq", last_sequence_data }
-              }
+            { "token", token },
+            { "session_id", session_id },
+            { "seq", last_sequence_data }
             }
-          });
+            }
+            });
         break;
       default:
         data.update(payload.d);
@@ -73,15 +73,15 @@ namespace discord {
         int code = response.status_code();
         switch(code) {
           case(200): {
-              // TODO should error if the json dump is empty
-              std::string json_dump = response.extract_utf8string(true).get();
-              auto parsed_json = json_dump.empty() ? nlohmann::json{} : nlohmann::json::parse(json_dump);
-              return parsed_json;
-          }
-          default: {
-              throw code;
-          }
+          // TODO should error if the json dump is empty
+          std::string json_dump = response.extract_utf8string(true).get();
+          auto parsed_json = json_dump.empty() ? nlohmann::json{} : nlohmann::json::parse(json_dump);
+          return parsed_json;
         }
-      });
+        default: {
+          throw code;
+        }
+      }
+    });
   }
 }

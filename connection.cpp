@@ -30,6 +30,7 @@ namespace discord {
     std::cout << "connecting" << std::endl;
     // connect to the gateway, expect a HELLO packet right after
     status = NEW;
+    up_to_date = true;
     client.connect(uri).then([]() {});
 
     std::promise<void> p;
@@ -37,11 +38,13 @@ namespace discord {
     while(true) { // continually try to maintain a connection
       try {
         heartbeat_thread = std::thread([&]{ this->heartbeat(p); });
+        event_thread = std::thread([this] { this->manage_events(); });
         heartbeat_thread.join(); // if returns, we have disconnected
-        f.get(); // will throw exception
+        event_thread.join(); // disconnects when heartbeating fails
+        f.get(); // throw error from the heartbeat thread
       } catch(const std::runtime_error &err) { // disconnected, send a resume payload
         std::cout << "disconnected!" << std::endl;
-        status = DISCONNECTED;
+        up_to_date = false;
         reconnect();
       } catch(const std::exception &e) { // unexpected exception, time to leave
         std::cout << e.what() << std::endl;
@@ -101,6 +104,7 @@ namespace discord {
         heartbeat_lock.lock();
         if(heartbeat_ticks != 0) {
           heartbeat_lock.unlock();
+          status = DISCONNECTED;
           throw std::runtime_error("did not receive heartbeat ack");
         }
         heartbeat_ticks++; // increment the ticks to show that sent out a heartbeat
@@ -121,6 +125,23 @@ namespace discord {
       p.set_exception(std::current_exception());
       return;
     }
+  }
+
+  void Connection::manage_events() {
+    payload p;
+    while(status == ACTIVE) {
+      event_q_lock.lock();
+      if(event_q.empty()) {
+        event_q_lock.unlock();
+        continue;
+      }
+      p = event_q.front();
+      send_payload(package(p));
+      event_q.pop();
+      event_q_lock.unlock();
+      rate_sem.wait();
+    }
+    return;
   }
 
   /**

@@ -3,6 +3,7 @@
 #define __DISCORD_HPP__
 
 #include "bot.hpp"
+#include "utils.hpp"
 
 #include <nlohmann/json.hpp>
 #include <cpprest/ws_client.h>
@@ -14,11 +15,12 @@
 
 #define HANDLE_DECL(op) void handle_##op(const payload &)
 #define HANDLE_ENTRY(op) { op, &Connection::handle_##op }
-#define EVENT_ENTRY(t) { "##t", &Connection::event_##t }
+
+#define EVENT_ENTRY(t) { #t, &Connection::event_##t }
+#define EVENT_DECL(t) void event_##t(const payload&)
 
 namespace discord
 {
-
   typedef web::websockets::client::websocket_callback_client wss_client;
   typedef web::websockets::client::websocket_outgoing_message websocket_outgoing_message;
   typedef web::websockets::client::websocket_incoming_message websocket_incoming_message;
@@ -55,7 +57,6 @@ namespace discord
   enum state {
     ACTIVE,
     DISCONNECTED,
-    DEAD,
     NEW
   };
 
@@ -65,16 +66,33 @@ namespace discord
   };
 
   class Connection {
-    struct guild {
-      std::string id;
-      bool unavailable;
-    };
-
     friend class Bot;
 
+    struct user {
+      snowflake_t id;
+      std::string username;
+      std::string discriminator;
+      std::string avatar;
+      bool bot;
+      bool system;
+      bool mfa_enabled;
+      std::string locale;
+      bool verified;
+      std::string email;
+      int flags;
+      int premium_type;
+    };
+
+    struct guild {
+      snowflake_t id;
+    };
+
     private:
-      // important set up information when communicating with the wss
+      // state variables
       state status;
+      bool up_to_date;
+
+      // connection settings
       encoding encoding_type;
       std::string uri;
       bool compress; // only supports zlib stream for now
@@ -85,20 +103,20 @@ namespace discord
       int num_shards;
       int shard_id;
       int heartbeat_ticks;
-
+      user user_info;
       std::string session_id;
-      snowflake_t snowflake;
-
       int last_sequence_data;
       std::string token;
+      guild guild_info;
 
       pplx::task<nlohmann::json> get_wss();
       void send_payload(const nlohmann::json&);
 
-      explicit Connection(bool, state = DEAD, encoding = JSON);
-      explicit Connection();
+      explicit Connection(bool, state = DISCONNECTED, encoding = JSON);
+      Connection();
 
       // utilities
+      std::thread resource_manager; // just manages rate limit for now
       nlohmann::json package(const payload payload);
       static payload unpack(const nlohmann::json msg);
 
@@ -112,10 +130,6 @@ namespace discord
       // heartbeat threads
       std::thread heartbeat_thread;
       std::mutex heartbeat_lock;
-
-      // handles out sending of events at the rate limit
-      std::thread event_thread;
-      std::mutex client_lock;
 
       HANDLE_DECL(DISPATCH);
       HANDLE_DECL(HEARTBEAT);
@@ -143,7 +157,40 @@ namespace discord
         HANDLE_ENTRY(HEARTBEAT_ACK),
       };
 
-      std::unordered_map<std::string, void (Connection::*)(const payload&) events = {
+      // event stuff
+      void manage_events();
+      std::thread event_thread;
+      std::queue<payload> event_q; // needed because events are rate limited
+      std::mutex event_q_lock;
+      int ticks; // counts # of events sent, reset every 60 seconds
+      static const unsigned long rate_limit = 120;
+      semaphore rate_sem{ rate_limit }; // moderate the rate limit
+      EVENT_DECL(HELLO);
+      EVENT_DECL(READY);
+      EVENT_DECL(RESUMED);
+      EVENT_DECL(RECONNECT);
+      EVENT_DECL(INVALID_SESSION);
+      EVENT_DECL(CHANNEL_CREATE);
+      EVENT_DECL(CHANNEL_UPDATE);
+      EVENT_DECL(CHANNEL_DELETE);
+      EVENT_DECL(CHANNEL_PINS_UPDATE);
+      EVENT_DECL(GUILD_CREATE);
+      EVENT_DECL(GUILD_UPDATE);
+      EVENT_DECL(GUILD_DELETE);
+      EVENT_DECL(GUILD_BAN_ADD);
+      EVENT_DECL(GUILD_BAN_REMOVE);
+      EVENT_DECL(GUILD_EMOJIS_UPDATE);
+      EVENT_DECL(GUILD_INTEGRATION_UPDATE);
+      EVENT_DECL(GUILD_MEMBER_ADD);
+      EVENT_DECL(GUILD_MEMBER_REMOVE);
+      EVENT_DECL(GUILD_MEMBER_UPDATE);
+      EVENT_DECL(GUILD_MEMBER_CHUNK);
+      EVENT_DECL(GUILD_ROLE_CREATE);
+      EVENT_DECL(GUILD_ROLE_UPDATE);
+      EVENT_DECL(GUILD_ROLE_DELETE);
+      EVENT_DECL(MESSAGE_CREATE);
+
+      std::unordered_map<std::string, void (Connection::*)(const payload&)> events = {
         EVENT_ENTRY(HELLO),
         EVENT_ENTRY(READY),
         EVENT_ENTRY(RESUMED),
