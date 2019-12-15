@@ -1,0 +1,125 @@
+[33mcommit 54331135415d3ad27c43959d1cbb27f34a7b716d[m[33m ([m[1;36mHEAD[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: Khang Vu <khangvu200391845@gmail.com>
+Date:   Sat Dec 14 23:22:23 2019 -0500
+
+    checkpoint commit
+
+[33mcommit 10508f044b7e9c4daf206db361a3fb9ba2aedec7[m
+Author: Khang Vu <khangvu200391845@gmail.com>
+Date:   Sat Dec 14 22:00:35 2019 -0500
+
+    checkpoint commit'
+
+[33mcommit 08cda481ef2cf84cd04f20ab5276cbe98f623137[m
+Author: Khang Vu <khangvu200391845@gmail.com>
+Date:   Sat Dec 14 21:13:28 2019 -0500
+
+    more threading work
+
+[33mcommit 17a7e2981d876ea96209c44a5890c1de5ad30c42[m
+Author: Khang Vu <khangvu200391845@gmail.com>
+Date:   Sat Dec 14 17:29:22 2019 -0500
+
+    heartbeating
+
+[33mcommit 785d03f8ffc418eebb8d5a6883c538ba4535fca4[m
+Author: Khang Vu <khangvu200391845@gmail.com>
+Date:   Sat Dec 14 17:26:47 2019 -0500
+
+    guild events and heartbeating
+
+[33mcommit b363bbe860559b36f86c2aa0a62e857b581e43e7[m
+Author: Khang Vu <khangvu200391845@gmail.com>
+Date:   Sat Dec 14 10:39:23 2019 -0500
+
+    reformatting to use wss callback client
+
+[33mcommit a913ababca1559e6629dbb6906167a18458558cb[m
+Author: Khang Vu <khangvu200391845@gmail.com>
+Date:   Tue Dec 10 14:05:49 2019 -0500
+
+    updated README
+
+[33mcommit c89ad18bee4298f7dbac607e9e8394c9fcd7eaf9[m[33m ([m[1;32mmaster[m[33m)[m
+Author: Khang Vu <khangvu200391845@gmail.com>
+Date:   Sat Nov 16 14:45:48 2019 -0500
+
+    checkpoint commit
+
+[33mcommit b4a6f995dad1a65f0504113b3f8544e7ffdf3771[m
+Author: Khang Vu <khangvu200391845@gmail.com>
+Date:   Wed Nov 6 17:08:34 2019 -0500
+
+    log in
+
+[33mcommit 481f7f087980b424cc9a26facc91364347d3dc71[m
+Author: Khang Vu <khangvu200391845@gmail.com>
+Date:   Wed Nov 6 15:45:20 2019 -0500
+
+    Deleted binary
+
+[33mcommit 827b65fd04b15f1800e38d3b100358a84ba0c9e5[m
+Author: Khang Vu <khangvu200391845@gmail.com>
+Date:   Wed Nov 6 15:41:47 2019 -0500
+
+    commiting for review
+
+[33mcommit 806d3c6675b5ef8c010af975562d2fec6c84c3be[m
+Author: Khang Vu <khangvu200391845@gmail.com>
+Date:   Tue Nov 5 19:35:07 2019 -0500
+
+    checkpoint cleaned up code, heartbeat
+
+[33mcommit eb5f75fca2234ef77eb7794bbdbcfbb69da49361[m
+Author: Khang Vu <khangvu200391845@gmail.com>
+Date:   Tue Nov 5 16:04:41 2019 -0500
+
+    clean up and checkpoint heartbeat
+
+[33mcommit 61d61c88fd48cad2001dd1cfe21365d6a0ccdb71[m
+Author: Khang Vu <khangvu200391845@gmail.com>
+Date:   Tue Nov 5 14:14:44 2019 -0500
+
+    cleaned up unused files
+
+[33mcommit 92352451765b9984a5b5f5734321f4a5cb2012dd[m
+Author: Khang Vu <khangvu200391845@gmail.com>
+Date:   Tue Nov 5 14:12:16 2019 -0500
+
+    checkpoint heartbeat
+
+[33mcommit fc489bad30f2845cdf1afb9db22a48ca90fb74c4[m
+Author: Khang Vu <khangvu200391845@gmail.com>
+Date:   Tue Nov 5 10:53:25 2019 -0500
+
+    completed packaging functions
+
+[33mcommit daa2b0adf06a1605e20a2e19c98293b0dcd94e07[m
+Author: Khang Vu <khangvu200391845@gmail.com>
+Date:   Tue Nov 5 01:26:17 2019 -0500
+
+    created connection class
+
+[33mcommit 092a2d91234b8f01d941f75323f69501df958e8d[m
+Author: Khang Vu <khangvu200391845@gmail.com>
+Date:   Mon Nov 4 21:04:33 2019 -0500
+
+    organization changes
+
+[33mcommit 9b762f3f5ec916657d41e9656438bbb105a756e5[m
+Author: Khang Vu <khangvu200391845@gmail.com>
+Date:   Tue Oct 22 15:12:40 2019 -0400
+
+    finished connection to gateway
+
+[33mcommit e284a8a6dfa096f8ebc0c7f55256acb6100984c8[m
+Author: Khang Vu <khangvu200391845@gmail.com>
+Date:   Sun Oct 20 23:30:55 2019 -0400
+
+    initial commit
+
+[33mcommit 9fdec9306291d736f5f86dcd8302f1ed59a09d09[m
+Author: OfficerMuffins <khangvu200391845@gmail.com>
+Date:   Sun Oct 20 21:55:14 2019 -0400
+
+    Initial commit
