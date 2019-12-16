@@ -1,100 +1,200 @@
+#include "bot.hpp"
 #include "discord.hpp"
+#include "utils.hpp"
+#include "gateway.hpp"
 
-#define HANDLE_DEFINE(op) void Connection::handle_##op(const payload &msg)
+namespace backend {
+  // using default settings
+  gateway::gateway(Bot &bot, bool compress, encoding enc) :
+    Connection(bot), workers(NUM_THREADS), rate_sem{rate_limit} {}
 
-namespace discord {
-  HANDLE_DEFINE(DISPATCH) {
+  /**
+   * @brief: run the connection
+   *
+   * A call to this function is blocking.
+   */
+  void gateway::run() {
+    nlohmann::json dump;
+
+    // message handler can't be member function
+    client.set_message_handler([this](const websocket_incoming_message &msg){ this->handle_callback(msg); });
+    client.set_close_handler([this](const wss_close_status close_status, const utility::string_t &reason, const std::error_code &error) {
+        std::cout << "error " << error.value() << " " << static_cast<int>(close_status) << ":" << reason << std::endl;
+        this->close();
+        });
+    // connect to the gateway, expect a HELLO packet right after
+    *status = NEW;
+    *up_to_date = true;
+    client.connect(uri).then([](){});
+
+    // future to grab exception by heartbeat thread
+    std::promise<void> p;
+    std::future<void> f = p.get_future();
+
+    while(*status == NEW); // wait until we receive the ready event for us to actually start heartbeating
+
+    // TODO if disconnected, signal all other threads from other files
+    while(true) { // continually try to maintain a connection
+      try {
+        // start all workers
+        boost::asio::post(workers, [&]{ this->heartbeat(p); }); // sends heartbeats at hearbeat intervals
+        boost::asio::post(workers, [this] { this->manage_resources(); }); // resets the rate limit
+        boost::asio::post(workers, [this] { this->manage_events(); }); // sends events at rate limit
+        close(); // will exit when the connection is closed
+        f.get(); // throw error from the heartbeat thread
+      } catch(const std::runtime_error &err) { // disconnected, send a resume payload
+        std::cout << "disconnected!" << std::endl;
+        *up_to_date = false;
+        reconnect();
+      } catch(const std::exception &e) { // unexpected exception, time to leave
+        std::cout << __FILE__ << __LINE__ << ": " << e.what() << std::endl;
+        throw std::runtime_error("Unexpected exception during heartbeat");
+      }
+    }
+  }
+
+  /**
+   * @brief:
+   */
+  void gateway::reconnect() {
+    client.connect(uri).then([]() {});
+    send_payload({discord::RESUME});
+  }
+
+  /**
+   * @brief: sends the payload via websocket
+   *
+   * @param[in]: payload reference that will be sent
+   */
+  void gateway::send_payload(const nlohmann::json &payload) {
+    websocket_outgoing_message out_msg;
+    out_msg.set_utf8_message(payload.dump(4));
+    std::cout << "Sending to " << client.uri().to_string() << std::endl << payload.dump(4) << std::endl;
+    client_lock.lock();
+    client.send(out_msg).then([](){});
+    client_lock.unlock();
+    return;
+  }
+
+  /**
+   * @brief: client callback handler
+   *
+   * Handles incoming payloads by using the provided opcode as key.
+   *
+   * @param[in]: incoming message. Use to extract json
+   */
+  void gateway::handle_callback(const websocket_incoming_message &msg) {
+    std::string utf8_msg = msg.extract_string().get();
+    auto parsed_json = utf8_msg.empty() ? throw "oh no" : nlohmann::json::parse(utf8_msg);
+    std::cout << "message: " << parsed_json.dump(4) << std::endl;
+    discord::payload payload_msg = unpack(parsed_json);
+    if(*up_to_date == true) { // if this is the most recent event, then we are ok with sending it
+      try {
+        (this->*(this->handlers[payload_msg.op]))(payload_msg);
+      } catch(const std::exception &e) {
+        std::cout << __FILE__ << __LINE__ << ": " << e.what() << std::endl;
+        close();
+        exit(2);
+      }
+    } else { // we should record all events that have occured until we are resumed
+      while(payload_msg.t != "RESUMED") {
+      }
+      *up_to_date = true;
+    }
+  }
+
+  /**
+   * @brief: sends a heartbeat payload at heartbeat intervals
+   *
+   * Discord API requires that a heartbeat payload be sent at heartbeat_interval intervals.
+   * The number of heartbeat is kept in a variable heartbeat_ticks which is incremented everytime a
+   * heartbeat is sent and decrement when a HEARTBEAT_ACK is received, therefore it should always be
+   * 0 at the start of sending the heartbeat;
+   *
+   * @bug: how to make sure that the heartbeat thread and the other threads share clients properly?
+   * @bug: concurrency issues with heartbeat?
+   */
+  void gateway::heartbeat(std::promise<void> &p) {
+    // FIXME not sure what to get for sequence data
     try {
-      std::cout << "dispatching" << msg.t << std::endl;
-      (this->*(this->events[msg.t]))(msg);
-    } catch(const std::exception &e) {
-      std::cout << e.what() << " at handling DISPATCH" << std::endl;
+      while(*status == ACTIVE) {
+        // serialize the main thread which can be sending heartbeats in response
+        heartbeat_lock.lock();
+        if(heartbeat_ticks != 0) {
+          std::cout << "this is why we disconnected" << std::endl;
+          *status = DISCONNECTED;
+          heartbeat_lock.unlock();
+          throw std::runtime_error("did not receive heartbeat ack");
+        }
+        std::cout << "sending heartbeat" << heartbeat_interval << std::endl;
+        heartbeat_ticks++; // increment the ticks to show that sent out a heartbeat
+        // heartbeat_interval is maximum amount of time and there's no punishment for
+        // heartbeating, so send it a little earlier
+        auto x = std::chrono::steady_clock::now() +
+          std::chrono::milliseconds(heartbeat_interval);
+        send_payload(
+            {
+              { "op", discord::HEARTBEAT },
+              { "d", last_sequence_data },
+            });
+        heartbeat_lock.unlock();
+        std::cout << "sleeping" << std::endl;
+        std::this_thread::sleep_until(x);
+      }
+      return;
+    } catch(const std::exception &err) {
+      p.set_exception(std::current_exception());
+      return;
     }
   }
 
   /**
-   * @brief: handle a heartbeat request from wss
+   * @brief: manage sending of events
    *
-   * Sends a heartbeat back.
-   *
-   * @bug: will send twice because other thread will send a heartbeat too
+   * While the connection is active, ths function manages the sending of events while
+   * implementing rate limiting. This thread uses a semaphore that is decremented everytime
+   * an event is sent to server. The semaphore will block at 0 which means that the connection
+   * is reaching its event rate limit. The function will block until the semaphore is reset by
+   * the resource manager thread.
    */
-  HANDLE_DEFINE(HEARTBEAT) {
-    send_payload(
-        {
-          { "op", HEARTBEAT },
-          { "d", this->last_sequence_data },
-        });
-  }
-
-  /**
-   * @brief: handle the ready event
-   *
-   * The ready event is sent after the identify packet and gives us the following relevant
-   * information: gateway protocol, information about user (including email), the guilds that
-   * the user is in (aka the servers), session id, shard
-   *
-   * TODO clients are limited to 1 identify every 5 seconds
-   */
-  HANDLE_DEFINE(IDENTIFY) {
-  }
-
-  HANDLE_DEFINE(STATUS_UPDATE) {
-  }
-
-  HANDLE_DEFINE(VOICE_UPDATE) {
-  }
-
-  HANDLE_DEFINE(RESUME) {
-  }
-
-  HANDLE_DEFINE(RECONNECT) {
-  }
-
-  HANDLE_DEFINE(REQUEST_GUILD_MEMBERS) {
-  }
-
-  HANDLE_DEFINE(INVALID_SESS) {
-    status = DISCONNECTED;
-  }
-
-  /**
-   * @brief: responds to the HELLO payload
-   *
-   * The initial HELLO payload provides the heartbeat_interval as well as
-   * the gateway server location.
-   */
-  HANDLE_DEFINE(HELLO) {
-    // this is the first time we've received a HELLO packet
-    if(status == NEW) {
-      heartbeat_interval = msg.d["heartbeat_interval"].get<int>();
-      // the first identify payload is unique
-      send_payload(
-          {
-            {"d",{
-              { "token", token },
-              { "properties", {
-                { "$os", "linux" },
-                { "$browser", "Discord" },
-                { "$device", "Discord" }}
-              },
-              { "compress", false }}
-            },
-            {"op", IDENTIFY},
-          });
-    } else if(status == DISCONNECTED) {
-      send_payload({
-          { "token", token },
-          { "session_id", session_id },
-          { "seq", last_sequence_data }
-        });
+  void gateway::manage_events() {
+    while(*status == ACTIVE) {
+      event_q_lock.lock();
+      if(event_q.empty()) {
+        event_q_lock.unlock();
+        continue;
+      }
+      discord::payload p = event_q.front();
+      send_payload(package(p));
+      event_q.pop();
+      event_q_lock.unlock();
+      rate_sem.wait();
     }
+    return;
   }
 
-  HANDLE_DEFINE(HEARTBEAT_ACK) {
-    std::cout << "ack" << std::endl;
-    heartbeat_lock.lock();
-    heartbeat_ticks--;
-    heartbeat_lock.unlock();
+  /**
+   * @brief: ends the connection with the websocket
+   *
+   * Declares the state dead which forces heartbeating to stop and join the main thread.
+   * Once all threads have been joined, the client closes.
+   */
+  void gateway::close() {
+    *status = DISCONNECTED;
+    workers.join(); // peaceful exit
+    client.close().then([](){});
+  }
+
+  /**
+   * @brief: manages the resources of the connection
+   */
+  void gateway::manage_resources() {
+    while(*status == ACTIVE) {
+      // reset the semaphore every minute
+      auto x = std::chrono::steady_clock::now() + std::chrono::seconds(60);
+      std::this_thread::sleep_until(x);
+      rate_sem.reset();
+    }
+    return;
   }
 }
