@@ -4,9 +4,6 @@
 #include <memory>
 
 namespace backend {
-  static const unsigned long rate_limit = 120;
-  static const std::string uri = "wss://gateway.discord.gg/?v=6&encoding=json";
-
   enum encoding {
     JSON,
     ETF

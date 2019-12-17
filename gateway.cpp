@@ -3,6 +3,7 @@
 #include "utils.hpp"
 #include "gateway.hpp"
 
+#define PAYLOAD_DEBUG 0
 namespace backend {
   // using default settings
   gateway::gateway(Bot &bot, bool compress, encoding enc) :
@@ -11,27 +12,30 @@ namespace backend {
   /**
    * @brief: run the connection
    *
-   * A call to this function is blocking.
+   * A call to this function is blocking and this funciton should be called via a seperate thread
    */
   void gateway::run() {
     nlohmann::json dump;
 
-    // message handler can't be member function
+    // set the websocket call back and close handlers
     client.set_message_handler([this](const websocket_incoming_message &msg){ this->handle_callback(msg); });
     client.set_close_handler([this](const wss_close_status close_status, const utility::string_t &reason, const std::error_code &error) {
         std::cout << "error " << error.value() << " " << static_cast<int>(close_status) << ":" << reason << std::endl;
         this->close();
         });
-    // connect to the gateway, expect a HELLO packet right after
+    // set the new connections status
     *status = NEW;
     *up_to_date = true;
+
+    // connect to the gateway, expect a HELLO packet right after
     client.connect(uri).then([](){});
 
-    // future to grab exception by heartbeat thread
+    // future to grab exception by the heartbeat thread
+    // TODO for now, only the exception from the heartbeat thread is caught
     std::promise<void> p;
     std::future<void> f = p.get_future();
 
-    while(*status == NEW); // wait until we receive the ready event for us to actually start heartbeating
+    while(*status != ACTIVE); // wait until we receive the ready event for us to actually start heartbeating
 
     // TODO if disconnected, signal all other threads from other files
     while(true) { // continually try to maintain a connection
@@ -40,7 +44,7 @@ namespace backend {
         boost::asio::post(workers, [&]{ this->heartbeat(p); }); // sends heartbeats at hearbeat intervals
         boost::asio::post(workers, [this] { this->manage_resources(); }); // resets the rate limit
         boost::asio::post(workers, [this] { this->manage_events(); }); // sends events at rate limit
-        close(); // will exit when the connection is closed
+        workers.join();
         f.get(); // throw error from the heartbeat thread
       } catch(const std::runtime_error &err) { // disconnected, send a resume payload
         std::cout << "disconnected!" << std::endl;
@@ -69,7 +73,10 @@ namespace backend {
   void gateway::send_payload(const nlohmann::json &payload) {
     websocket_outgoing_message out_msg;
     out_msg.set_utf8_message(payload.dump(4));
+#if PAYLOAD_DEBUG == 1
     std::cout << "Sending to " << client.uri().to_string() << std::endl << payload.dump(4) << std::endl;
+#else
+#endif
     client_lock.lock();
     client.send(out_msg).then([](){});
     client_lock.unlock();
@@ -86,12 +93,15 @@ namespace backend {
   void gateway::handle_callback(const websocket_incoming_message &msg) {
     std::string utf8_msg = msg.extract_string().get();
     auto parsed_json = utf8_msg.empty() ? throw "oh no" : nlohmann::json::parse(utf8_msg);
+#if PAYLOAD_DEBUG == 1
     std::cout << "message: " << parsed_json.dump(4) << std::endl;
+#else
+#endif
     discord::payload payload_msg = unpack(parsed_json);
     if(*up_to_date == true) { // if this is the most recent event, then we are ok with sending it
       try {
         (this->*(this->handlers[payload_msg.op]))(payload_msg);
-      } catch(const std::exception &e) {
+      } catch(const std::exception &e) { // TODO handle this
         std::cout << __FILE__ << __LINE__ << ": " << e.what() << std::endl;
         close();
         exit(2);
@@ -121,7 +131,6 @@ namespace backend {
         // serialize the main thread which can be sending heartbeats in response
         heartbeat_lock.lock();
         if(heartbeat_ticks != 0) {
-          std::cout << "this is why we disconnected" << std::endl;
           *status = DISCONNECTED;
           heartbeat_lock.unlock();
           throw std::runtime_error("did not receive heartbeat ack");
@@ -138,7 +147,6 @@ namespace backend {
               { "d", last_sequence_data },
             });
         heartbeat_lock.unlock();
-        std::cout << "sleeping" << std::endl;
         std::this_thread::sleep_until(x);
       }
       return;
@@ -158,19 +166,23 @@ namespace backend {
    * the resource manager thread.
    */
   void gateway::manage_events() {
-    while(*status == ACTIVE) {
-      event_q_lock.lock();
-      if(event_q.empty()) {
+    try {
+      while(*status == ACTIVE) {
+        event_q_lock.lock();
+        if(event_q.empty()) {
+          event_q_lock.unlock();
+          continue;
+        }
+        discord::payload p = event_q.front();
+        send_payload(package(p));
+        event_q.pop();
         event_q_lock.unlock();
-        continue;
+        rate_sem.wait();
       }
-      discord::payload p = event_q.front();
-      send_payload(package(p));
-      event_q.pop();
-      event_q_lock.unlock();
-      rate_sem.wait();
+      return;
+    } catch(const std::exception &e) {
+      std::cout << __FILE__ << __LINE__ << ": " << e.what() << std::endl;
     }
-    return;
   }
 
   /**
@@ -187,14 +199,20 @@ namespace backend {
 
   /**
    * @brief: manages the resources of the connection
+   *
+   * For now, all this thread does is reset the wait limit of the event semaphore.
    */
   void gateway::manage_resources() {
-    while(*status == ACTIVE) {
-      // reset the semaphore every minute
-      auto x = std::chrono::steady_clock::now() + std::chrono::seconds(60);
-      std::this_thread::sleep_until(x);
-      rate_sem.reset();
+    try {
+      while(*status == ACTIVE) {
+        // reset the semaphore every minute
+        auto x = std::chrono::steady_clock::now() + std::chrono::seconds(60);
+        std::this_thread::sleep_until(x);
+        rate_sem.reset();
+      }
+      return;
+    } catch(const std::exception &e) {
+      std::cout << __FILE__ << __LINE__ << ": " << e.what() << std::endl;
     }
-    return;
   }
 }

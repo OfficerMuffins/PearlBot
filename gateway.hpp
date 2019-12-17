@@ -32,6 +32,9 @@ namespace backend {
    * the handling of events and heartbeating.
    */
   class gateway : protected Connection {
+    const unsigned long rate_limit = 120;
+    const std::string uri = "wss://gateway.discord.gg/?v=6&encoding=json";
+
     public:
       gateway(Bot &, bool, encoding);
       void run(); // main
@@ -127,6 +130,18 @@ namespace backend {
       EVENT_DECL(GUILD_ROLE_UPDATE);
       EVENT_DECL(GUILD_ROLE_DELETE);
       EVENT_DECL(MESSAGE_CREATE);
+      EVENT_DECL(MESSAGE_UPDATE);
+      EVENT_DECL(MESSAGE_DELETE);
+      EVENT_DECL(MESSAGE_DELETE_BULK);
+      EVENT_DECL(MESSAGE_REACTION_ADD);
+      EVENT_DECL(MESSAGE_REACTION_REMOVE);
+      EVENT_DECL(MESSAGE_REACTION_REMOVE_ALL);
+      EVENT_DECL(PRESENCE_UPDATE);
+      EVENT_DECL(TYPING_START);
+      EVENT_DECL(USER_UPDATE);
+      EVENT_DECL(VOICE_STATE_UPDATE);
+      EVENT_DECL(VOICE_SERVER_UPDATE);
+      EVENT_DECL(WEBHOOKS_UPDATE);
 
       std::unordered_map<std::string, void (gateway::*)(const discord::payload&)> events = {
         EVENT_ENTRY(HELLO),
@@ -153,6 +168,19 @@ namespace backend {
         EVENT_ENTRY(GUILD_ROLE_UPDATE),
         EVENT_ENTRY(GUILD_ROLE_DELETE),
         EVENT_ENTRY(MESSAGE_CREATE),
-      };
+
+        EVENT_ENTRY(MESSAGE_UPDATE),
+        EVENT_ENTRY(MESSAGE_DELETE),
+        EVENT_ENTRY(MESSAGE_DELETE_BULK),
+        EVENT_ENTRY(MESSAGE_REACTION_ADD),
+        EVENT_ENTRY(MESSAGE_REACTION_REMOVE),
+        EVENT_ENTRY(MESSAGE_REACTION_REMOVE_ALL),
+        EVENT_ENTRY(PRESENCE_UPDATE),
+        EVENT_ENTRY(TYPING_START),
+        EVENT_ENTRY(USER_UPDATE),
+        EVENT_ENTRY(VOICE_STATE_UPDATE),
+        EVENT_ENTRY(VOICE_SERVER_UPDATE),
+        EVENT_ENTRY(WEBHOOKS_UPDATE),
+    };
   };
 }

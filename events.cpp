@@ -48,7 +48,19 @@ namespace backend {
   EVENT_HANDLER(GUILD_ROLE_CREATE){}
   EVENT_HANDLER(GUILD_ROLE_UPDATE){}
   EVENT_HANDLER(GUILD_ROLE_DELETE){}
-  EVENT_HANDLER(MESSAGE_CREATE){}
+  EVENT_HANDLER(MESSAGE_CREATE) {}
+  EVENT_HANDLER(MESSAGE_UPDATE){}
+  EVENT_HANDLER(MESSAGE_DELETE){}
+  EVENT_HANDLER(MESSAGE_DELETE_BULK){}
+  EVENT_HANDLER(MESSAGE_REACTION_ADD){}
+  EVENT_HANDLER(MESSAGE_REACTION_REMOVE){}
+  EVENT_HANDLER(MESSAGE_REACTION_REMOVE_ALL){}
+  EVENT_HANDLER(PRESENCE_UPDATE){}
+  EVENT_HANDLER(TYPING_START){}
+  EVENT_HANDLER(USER_UPDATE){}
+  EVENT_HANDLER(VOICE_STATE_UPDATE){}
+  EVENT_HANDLER(VOICE_SERVER_UPDATE){}
+  EVENT_HANDLER(WEBHOOKS_UPDATE){}
 
   GATEWAY_HANDLE(DISPATCH) {
     (this->*(this->events[msg.t]))(msg);
@@ -69,35 +81,21 @@ namespace backend {
         });
   }
 
-  /**
-   * @brief: handle the ready event
-   *
-   * The ready event is sent after the identify packet and gives us the following relevant
-   * information: gateway protocol, information about user (including email), the guilds that
-   * the user is in (aka the servers), session id, shard
-   *
-   * TODO clients are limited to 1 identify every 5 seconds
-   */
-  GATEWAY_HANDLE(IDENTIFY) {
-  }
+  GATEWAY_HANDLE(IDENTIFY) {}
 
-  GATEWAY_HANDLE(STATUS_UPDATE) {
-  }
+  GATEWAY_HANDLE(STATUS_UPDATE) {}
 
-  GATEWAY_HANDLE(VOICE_UPDATE) {
-  }
+  GATEWAY_HANDLE(VOICE_UPDATE) {}
 
-  GATEWAY_HANDLE(RESUME) {
-  }
+  GATEWAY_HANDLE(RESUME) {}
 
-  GATEWAY_HANDLE(RECONNECT) {
-  }
+  GATEWAY_HANDLE(RECONNECT) {}
 
-  GATEWAY_HANDLE(REQUEST_GUILD_MEMBERS) {
-  }
+  GATEWAY_HANDLE(REQUEST_GUILD_MEMBERS) {}
 
   GATEWAY_HANDLE(INVALID_SESS) {
     *status = DISCONNECTED;
+    *up_to_date = false;
   }
 
   /**

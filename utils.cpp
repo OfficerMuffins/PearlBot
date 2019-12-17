@@ -87,7 +87,7 @@ namespace backend {
     user_info.avatar = user_obj["avatar"].is_null() ? "" : user_obj["avatar"].get<std::string>();
     user_info.bot = user_obj["bot"].get<bool>();
     user_info.discriminator = user_obj["discriminator"].get<std::string>();
-    user_info.email = user_obj["email"].get<std::string>();
+    user_info.email = user_obj["email"].is_null() ? "" : user_obj["email"].get<std::string>();
     user_info.id = user_obj["id"].get<std::string>();
     user_info.username = user_obj["username"].get<std::string>();
     return user_info;

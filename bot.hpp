@@ -10,15 +10,16 @@ enum state {
 class Bot {
   private:
     // shared between bot, gateway, and connection
-    std::string token;
     state status;
     bool up_to_date;
 
   public:
+    std::string token;
     char ref;
 
     Bot(std::string, char);
     int run();
     state* get_state_ptr();
     bool* get_up_to_date_ptr();
+    void create_message();
 };
