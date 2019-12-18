@@ -11,10 +11,14 @@ namespace backend {
    *
    * @param[in]: reference to bot that create the connection
    */
-  Connection::Connection(Bot &bot) {
+  void Connection::init_shared(state* status, bool* up_to_date, std::string token) {
     // make shared ptr on statck allocated variables
-    up_to_date = { bot.get_up_to_date_ptr(), [](bool*){} };
-    status = { bot.get_state_ptr(), [](state*){} };
-    token = bot.token;
+    this->up_to_date = up_to_date;
+    this->status = status;
+    this->token = token;
+  }
+
+  void Connection::init_cmd_q(std::shared_ptr<std::queue<commands>> &q) {
+    command_q = std::shared_ptr<std::queue<commands>>(q);
   }
 }

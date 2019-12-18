@@ -1,14 +1,14 @@
 #pragma once
 
 #include "discord.hpp"
+
 #include <nlohmann/json.hpp>
 #include <mutex>
 #include <condition_variable>
 #include <cpprest/ws_client.h>
 #include <cpprest/http_client.h>
 
-class semaphore
-{
+class semaphore {
   private:
     std::mutex mutex_;
     std::condition_variable condition_;

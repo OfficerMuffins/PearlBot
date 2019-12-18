@@ -2,6 +2,17 @@
 #include <string>
 #include <nlohmann/json.hpp>
 
+enum state {
+  ACTIVE,
+  DISCONNECTED,
+  NEW
+};
+
+enum commands {
+  GAYGANG,
+  LOOKUP_LEAGUE,
+};
+
 namespace discord {
   enum opcodes {
     DISPATCH = 0,
@@ -17,34 +28,37 @@ namespace discord {
     HEARTBEAT_ACK = 11
   };
 
-  enum state {
-    ACTIVE,
-    DISCONNECTED,
-    NEW
-  };
-
-  enum encoding {
-    JSON,
-    ETF
-  };
-
   struct user {
     std::string id;
     std::string username;
     std::string discriminator;
     std::string avatar;
     bool bot;
-    bool system;
-    bool mfa_enabled;
-    std::string locale;
-    bool verified;
-    std::string email;
-    int flags;
-    int premium_type;
+    bool deaf;
+    bool mute;
+  };
+
+  struct role {
+    std::string name;
+    std::string id;
+    bool managed;
+    bool mentionable;
+    unsigned long permissions;
+    short position;
+    bool hoist;
   };
 
   struct guild {
+    int member_count;
     std::string id;
+    std::vector<user> members;
+    std::vector<role> roles;
+  };
+
+  struct channel {
+    std::string name;
+    std::string id;
+    int type;
   };
 
   class payload {

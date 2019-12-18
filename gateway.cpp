@@ -1,13 +1,12 @@
-#include "bot.hpp"
 #include "discord.hpp"
 #include "utils.hpp"
 #include "gateway.hpp"
+#include "bot.hpp"
 
-#define PAYLOAD_DEBUG 0
+#define PAYLOAD_DEBUG 1
 namespace backend {
   // using default settings
-  gateway::gateway(Bot &bot, bool compress, encoding enc) :
-    Connection(bot), workers(NUM_THREADS), rate_sem{rate_limit} {}
+  gateway::gateway(bool compress, encoding enc) : Connection(), workers(NUM_THREADS), rate_sem{rate_limit} {}
 
   /**
    * @brief: run the connection

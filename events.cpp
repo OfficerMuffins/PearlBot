@@ -1,5 +1,6 @@
 #include "discord.hpp"
 #include "gateway.hpp"
+#include "bot.hpp"
 
 #define EVENT_HANDLER(t) void gateway::event_##t(const discord::payload &msg)
 #define GATEWAY_HANDLE(op) void gateway::handle_##op(const discord::payload &msg)
@@ -17,7 +18,7 @@ namespace backend {
   EVENT_HANDLER(READY) {
     session_id = msg.d["session_id"].get<std::string>();
     guild_info.id = msg.d["guilds"][0]["id"].get<std::string>(); // part of only 1 guild
-    user_info = parse_user(msg.d["user"]);
+    //user_info = parse_user(msg.d["user"]); TODO fix this
     *status = ACTIVE;
   }
 
@@ -34,7 +35,22 @@ namespace backend {
   EVENT_HANDLER(CHANNEL_UPDATE){}
   EVENT_HANDLER(CHANNEL_DELETE){}
   EVENT_HANDLER(CHANNEL_PINS_UPDATE){}
-  EVENT_HANDLER(GUILD_CREATE){}
+
+  /**
+   * @brief: grab guild information
+   *
+   * This is a very important event because it contains information about the guild as well as
+   * all of the users that exists insdie of it. Pearlbot only exists in one guild so only one, so it
+   * holds the guild object instead of vector of guilds.
+   */
+  EVENT_HANDLER(GUILD_CREATE) {
+    guild_info.member_count = msg.d["member_count"].get<int>();
+    auto roles = msg.d["roles"];
+    size_t idx = 0;
+    while(!roles[idx++].is_null()) {
+    }
+  }
+
   EVENT_HANDLER(GUILD_UPDATE){}
   EVENT_HANDLER(GUILD_DELETE){}
   EVENT_HANDLER(GUILD_BAN_ADD){}
@@ -48,21 +64,35 @@ namespace backend {
   EVENT_HANDLER(GUILD_ROLE_CREATE){}
   EVENT_HANDLER(GUILD_ROLE_UPDATE){}
   EVENT_HANDLER(GUILD_ROLE_DELETE){}
-  EVENT_HANDLER(MESSAGE_CREATE) {}
+
+  EVENT_HANDLER(MESSAGE_CREATE) {
+    std::string content = msg.d["content"].get<std::string>();
+    if(content.at(0) == '#') {
+      content.erase(0,1);
+      if (content == "gaygang") {
+        command_q->push(GAYGANG);
+      }
+    }
+  }
+
   EVENT_HANDLER(MESSAGE_UPDATE){}
   EVENT_HANDLER(MESSAGE_DELETE){}
   EVENT_HANDLER(MESSAGE_DELETE_BULK){}
   EVENT_HANDLER(MESSAGE_REACTION_ADD){}
   EVENT_HANDLER(MESSAGE_REACTION_REMOVE){}
   EVENT_HANDLER(MESSAGE_REACTION_REMOVE_ALL){}
-  EVENT_HANDLER(PRESENCE_UPDATE){}
-  EVENT_HANDLER(TYPING_START){}
+
+  EVENT_HANDLER(PRESENCE_UPDATE) {
+  }
+
+  EVENT_HANDLER(TYPING_START) {}
   EVENT_HANDLER(USER_UPDATE){}
   EVENT_HANDLER(VOICE_STATE_UPDATE){}
   EVENT_HANDLER(VOICE_SERVER_UPDATE){}
   EVENT_HANDLER(WEBHOOKS_UPDATE){}
 
   GATEWAY_HANDLE(DISPATCH) {
+    last_sequence_data++;
     (this->*(this->events[msg.t]))(msg);
   }
 
@@ -132,7 +162,6 @@ namespace backend {
   }
 
   GATEWAY_HANDLE(HEARTBEAT_ACK) {
-    std::cout << "ack" << std::endl;
     heartbeat_lock.lock();
     heartbeat_ticks--;
     heartbeat_lock.unlock();

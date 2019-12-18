@@ -31,12 +31,12 @@ namespace backend {
    * is used to maintain the states and activity of the guilds. The gateway class maintains
    * the handling of events and heartbeating.
    */
-  class gateway : protected Connection {
+  class gateway : public Connection {
     const unsigned long rate_limit = 120;
     const std::string uri = "wss://gateway.discord.gg/?v=6&encoding=json";
 
     public:
-      gateway(Bot &, bool, encoding);
+      gateway(bool, encoding);
       void run(); // main
 
     private:
@@ -50,13 +50,8 @@ namespace backend {
       int heartbeat_interval = 0;
       int num_shards = 0;
       int shard_id = 0;
-      discord::user user_info;
       std::string session_id;
       int last_sequence_data = 0;
-      discord::guild guild_info;
-
-      pplx::task<nlohmann::json> get_wss();
-      void send_payload(const nlohmann::json&);
 
       // threads, manages work for the stateful gateway
       boost::asio::thread_pool workers;
@@ -64,8 +59,10 @@ namespace backend {
       void manage_events(); // manage sending of events and rate limiting
       void heartbeat(std::promise<void> &); // handle heartbeat
 
+      // utilities
       nlohmann::json package(const discord::payload &payload);
       static discord::payload unpack(const nlohmann::json msg);
+      void send_payload(const nlohmann::json&);
 
       // handlers
       void handle_callback(const websocket_incoming_message &); // wss client message handler
@@ -168,7 +165,6 @@ namespace backend {
         EVENT_ENTRY(GUILD_ROLE_UPDATE),
         EVENT_ENTRY(GUILD_ROLE_DELETE),
         EVENT_ENTRY(MESSAGE_CREATE),
-
         EVENT_ENTRY(MESSAGE_UPDATE),
         EVENT_ENTRY(MESSAGE_DELETE),
         EVENT_ENTRY(MESSAGE_DELETE_BULK),
