@@ -48,4 +48,6 @@ class semaphore {
 
 namespace backend {
   discord::user parse_user(const nlohmann::json &);
+  discord::role parse_role(const nlohmann::json &);
+  discord::channel parse_channel(const nlohmann::json &);
 }

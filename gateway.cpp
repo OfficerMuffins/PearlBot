@@ -6,7 +6,7 @@
 #define PAYLOAD_DEBUG 1
 namespace backend {
   // using default settings
-  gateway::gateway(bool compress, encoding enc) : Connection(), workers(NUM_THREADS), rate_sem{rate_limit} {}
+  gateway::gateway(Bot *const bot, bool compress, encoding enc) : Connection(bot), workers(NUM_THREADS), rate_sem{rate_limit} {}
 
   /**
    * @brief: run the connection
@@ -23,8 +23,8 @@ namespace backend {
         this->close();
         });
     // set the new connections status
-    *status = NEW;
-    *up_to_date = true;
+    bot->status = NEW;
+    bot->up_to_date = true;
 
     // connect to the gateway, expect a HELLO packet right after
     client.connect(uri).then([](){});
@@ -34,20 +34,20 @@ namespace backend {
     std::promise<void> p;
     std::future<void> f = p.get_future();
 
-    while(*status != ACTIVE); // wait until we receive the ready event for us to actually start heartbeating
+    while(bot->status != ACTIVE); // wait until we receive the ready event for us to actually start heartbeating
 
     // TODO if disconnected, signal all other threads from other files
     while(true) { // continually try to maintain a connection
       try {
         // start all workers
         boost::asio::post(workers, [&]{ this->heartbeat(p); }); // sends heartbeats at hearbeat intervals
-        boost::asio::post(workers, [this] { this->manage_resources(); }); // resets the rate limit
-        boost::asio::post(workers, [this] { this->manage_events(); }); // sends events at rate limit
+        //boost::asio::post(workers, [this] { this->manage_resources(); }); // resets the rate limit
+        //boost::asio::post(workers, [this] { this->manage_events(); }); // sends events at rate limit
         workers.join();
         f.get(); // throw error from the heartbeat thread
       } catch(const std::runtime_error &err) { // disconnected, send a resume payload
         std::cout << "disconnected!" << std::endl;
-        *up_to_date = false;
+        bot->up_to_date = false;
         reconnect();
       } catch(const std::exception &e) { // unexpected exception, time to leave
         std::cout << __FILE__ << __LINE__ << ": " << e.what() << std::endl;
@@ -61,7 +61,7 @@ namespace backend {
    */
   void gateway::reconnect() {
     client.connect(uri).then([]() {});
-    send_payload({discord::RESUME});
+    send_payload(package({discord::RESUME}));
   }
 
   /**
@@ -97,7 +97,7 @@ namespace backend {
 #else
 #endif
     discord::payload payload_msg = unpack(parsed_json);
-    if(*up_to_date == true) { // if this is the most recent event, then we are ok with sending it
+    if(bot->up_to_date == true) { // if this is the most recent event, then we are ok with sending it
       try {
         (this->*(this->handlers[payload_msg.op]))(payload_msg);
       } catch(const std::exception &e) { // TODO handle this
@@ -108,7 +108,7 @@ namespace backend {
     } else { // we should record all events that have occured until we are resumed
       while(payload_msg.t != "RESUMED") {
       }
-      *up_to_date = true;
+      bot->up_to_date = true;
     }
   }
 
@@ -126,11 +126,11 @@ namespace backend {
   void gateway::heartbeat(std::promise<void> &p) {
     // FIXME not sure what to get for sequence data
     try {
-      while(*status == ACTIVE) {
+      while(bot->status == ACTIVE) {
         // serialize the main thread which can be sending heartbeats in response
         heartbeat_lock.lock();
         if(heartbeat_ticks != 0) {
-          *status = DISCONNECTED;
+          bot->status = DISCONNECTED;
           heartbeat_lock.unlock();
           throw std::runtime_error("did not receive heartbeat ack");
         }
@@ -166,7 +166,7 @@ namespace backend {
    */
   void gateway::manage_events() {
     try {
-      while(*status == ACTIVE) {
+      while(bot->status == ACTIVE) {
         event_q_lock.lock();
         if(event_q.empty()) {
           event_q_lock.unlock();
@@ -191,7 +191,7 @@ namespace backend {
    * Once all threads have been joined, the client closes.
    */
   void gateway::close() {
-    *status = DISCONNECTED;
+    bot->status = DISCONNECTED;
     workers.join(); // peaceful exit
     client.close().then([](){});
   }
@@ -203,7 +203,7 @@ namespace backend {
    */
   void gateway::manage_resources() {
     try {
-      while(*status == ACTIVE) {
+      while(bot->status == ACTIVE) {
         // reset the semaphore every minute
         auto x = std::chrono::steady_clock::now() + std::chrono::seconds(60);
         std::this_thread::sleep_until(x);

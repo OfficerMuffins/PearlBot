@@ -36,7 +36,7 @@ namespace backend {
     const std::string uri = "wss://gateway.discord.gg/?v=6&encoding=json";
 
     public:
-      gateway(bool, encoding);
+      gateway(Bot *const, bool, encoding);
       void run(); // main
 
     private:

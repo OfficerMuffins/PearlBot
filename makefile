@@ -13,6 +13,7 @@ CPP_FILES = main.cpp\
 	    gateway.cpp\
 	    events.cpp\
 	    endpoints.cpp\
+	    discord.cpp\
 
 build:
 	$(CXX) $(CXX_FLAGS) $(CPP_FILES) -o PearlBot $(LIBS)

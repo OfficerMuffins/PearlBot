@@ -1,16 +1,17 @@
+#include "discord.hpp"
+#include "connection.hpp"
 #include "endpoints.hpp"
+#include "bot.hpp"
 
 namespace backend {
+  client::client(Bot *const bot) : Connection(bot) {}
+
   /**
    * @brief: grab wss url from discord HTTP response
    */
   pplx::task<nlohmann::json> client::identify() {
-    // required headers the first request
-    web::http::http_request request(web::http::methods::GET);
-    // User agent fields are required for custom implemented APIs
-    request.headers().add(U("Authorization"), utility::conversions::to_string_t("Bot " + token));
-    request.headers().add(U("Content-Type"), U("application/json"));
-    request.headers().add(U("User-Agent"), U("DiscordBot https://github.com/OfficerMuffins/Pearlbot 1.0.0"));
+    http_request request(web::http::methods::GET);
+    default_headers(request);
     // GET is the default method, but let's be explicit
     // params: base_uri, config
     web::http::client::http_client client{ {U(base_uri)}};
@@ -43,5 +44,35 @@ namespace backend {
         break;
     };
     return { base_uri };
+  }
+
+  void client::send_message(std::string temp) {
+    http_request request(web::http::methods::POST);
+    default_headers(request);
+
+    uri_builder endpoint(base_uri);
+
+    nlohmann::json body {
+      {
+        {"content", temp},
+        {"tts", false}
+      }
+    };
+
+    endpoint.append_path("channels");
+    endpoint.append_path(std::to_string(chan.id));
+    endpoint.append_path("messages");
+    request.set_body(body.dump(4));
+    http_client client{ endpoint.to_uri() };
+    client.request(request).then([](web::http::http_response response) {
+        std::cout << response.extract_utf8string(true).get() << std::endl;
+        }).wait();
+  }
+
+  void client::default_headers(http_request &request) {
+    // User agent fields are required for custom implemented APIs
+    request.headers().add(U("Authorization"), utility::conversions::to_string_t("Bot " + bot->token));
+    request.headers().add(U("Content-Type"), U("application/json"));
+    request.headers().add(U("User-Agent"), U("DiscordBot https://github.com/OfficerMuffins/Pearlbot 1.0.0"));
   }
 }

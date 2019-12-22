@@ -1,9 +1,6 @@
 #pragma once
 #include "discord.hpp"
 
-#include <queue>
-#include <memory>
-
 namespace backend {
   enum encoding {
     JSON,
@@ -12,13 +9,9 @@ namespace backend {
 
   class Connection {
     public:
-      void init_shared(state*, bool*, std::string);
-      void init_cmd_q(std::shared_ptr<std::queue<commands>> &);
+      Connection(Bot *const);
     protected:
       // shared between bot, gateway, and connection
-      state *status;
-      bool *up_to_date;
-      std::shared_ptr<std::queue<commands>> command_q;
-      std::string token;
+      Bot *const bot;
   };
 }
