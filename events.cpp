@@ -1,6 +1,7 @@
 #include "discord.hpp"
 #include "gateway.hpp"
 #include "bot.hpp"
+#include "commands.hpp"
 #include "utils.hpp"
 #include <boost/tokenizer.hpp>
 
@@ -113,19 +114,24 @@ namespace backend {
     std::string content = msg.d["content"].get<std::string>();
     if(content.at(0) == bot->ref) {
       if(bot->whitelist[0].id != msg.d["user"]["id"].get<uint64_t>()) { // check if the user has permission to issue a command
-        bot->command_q.push("Permission Denied");
+        //bot->command_q.push([](){});
         return;
       }
       content.erase(0,1);
       std::string cmd = content.substr(0, content.find(" ")); // finds first word
+      std::function<void()> task;
       if(cmd == "makegang") {
         tokenizer<> tok(content);
-        std::vector<std::string> args;
+        std::vector<discord::user> args;
         for(tokenizer<>::iterator beg=tok.begin(); beg != tok.end(); ++beg) {
-          args.push_back(*beg);
+          args.push_back({std::stoul(*beg)});
         }
+        task = std::bind(command_makegang, args);
+        (bot->command_q).push(task);
+      } else if(cmd == "gaygang") {
+        task = {command_pinggang};
+        (bot->command_q).push(task);
       }
-      bot->command_q.push(cmd);
     }
   }
 
@@ -147,7 +153,11 @@ namespace backend {
 
   GATEWAY_HANDLE(DISPATCH) {
     last_sequence_data++;
-    (this->*(this->events[msg.t]))(msg);
+    try {
+      (this->*(this->events[msg.t]))(msg);
+    } catch(const std::exception &e) {
+      std::cout << msg.t << " not found" << std::endl;
+    }
   }
 
   /**

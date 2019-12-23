@@ -82,6 +82,8 @@ namespace discord {
     user(uint64_t);
     user();
     friend std::ostream& operator<<(std::ostream&, const user&);
+    inline bool operator==(const user& other) { return other.id == this->id; }
+    inline bool operator!=(const user& other) { return other.id != this->id; }
   };
 
   struct role {

@@ -32,11 +32,12 @@ namespace backend {
    * the handling of events and heartbeating.
    */
   class gateway : public Connection {
-    const unsigned long rate_limit = 120;
+    const uint32_t rate_limit = 120;
     const std::string uri = "wss://gateway.discord.gg/?v=6&encoding=json";
 
     public:
       gateway(Bot *const, bool, encoding);
+      void close(); // close connection and join threads
       void run(); // main
 
     private:
@@ -66,7 +67,6 @@ namespace backend {
 
       // handlers
       void handle_callback(const websocket_incoming_message &); // wss client message handler
-      void close(); // close connection and join threads
       void reconnect(); // attempt a reconnection by sending RESUME
 
       std::mutex heartbeat_lock; // heartbeat threads, keep the connection heartbeating

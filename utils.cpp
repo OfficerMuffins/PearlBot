@@ -67,33 +67,33 @@ namespace backend {
   discord::user parse_user(const nlohmann::json &user_obj) {
     discord::user user_info(0);
     user_info.avatar = user_obj["avatar"].is_null() ? 0 : std::stoul(user_obj["avatar"].get<std::string>());
-    user_info.bot = user_obj["bot"].get<bool>();
-    user_info.discriminator = std::stoul(user_obj["discriminator"].get<std::string>());
-    user_info.id = std::stoul(user_obj["id"].get<std::string>());
-    user_info.username = user_obj["username"].get<std::string>();
+    user_info.bot = user_obj["bot"].is_null() ? false : user_obj["bot"].get<bool>();
+    user_info.discriminator = user_obj["discriminator"].is_null() ? 0 : std::stoul(user_obj["discriminator"].get<std::string>());
+    user_info.id = user_obj["id"].is_null() ? 0 : std::stoul(user_obj["id"].get<std::string>());
+    user_info.username = user_obj["username"].is_null() ? "" : user_obj["username"].get<std::string>();
     return user_info;
   }
 
   discord::role parse_role(const nlohmann::json &role_obj) {
     discord::role temp;
-    temp.name = role_obj["name"].get<std::string>();
-    temp.id = std::stoul(role_obj["id"].get<std::string>());
-    temp.managed = role_obj["managed"].get<bool>();
-    temp.mentionable = role_obj["mentionable"].get<bool>();
-    temp.permissions = role_obj["permissions"].get<uint64_t>();
-    temp.position = role_obj["position"].get<short>();
-    temp.hoist = role_obj["hoist"].get<bool>();
+    temp.name = role_obj["name"].is_null() ? "" : role_obj["name"].get<std::string>();
+    temp.id = role_obj["id"].is_null() ? 0 : std::stoul(role_obj["id"].get<std::string>());
+    temp.managed = role_obj["managed"].is_null() ? false : role_obj["managed"].get<bool>();
+    temp.mentionable = role_obj["mentionable"].is_null() ? false : role_obj["mentionable"].get<bool>();
+    temp.permissions = role_obj["permissions"].is_null() ? 0 : role_obj["permissions"].get<uint64_t>();
+    temp.position = role_obj["position"].is_null() ? 0 : role_obj["position"].get<short>();
+    temp.hoist = role_obj["hoist"].is_null() ? false : role_obj["hoist"].get<bool>();
     return temp;
   }
 
   discord::channel parse_channel(const nlohmann::json &channel_obj) {
     discord::channel temp;
-    temp.bitrate = channel_obj["bitrate"].get<int>();
-    temp.id = std::stoul(channel_obj["id"].get<std::string>());
-    temp.name = channel_obj["name"].get<std::string>();
-    temp.position = channel_obj["position"].get<short>();
-    temp.type = channel_obj["type"].get<short>();
-    temp.user_limit = channel_obj["user_limit"].get<short>();
+    temp.bitrate = channel_obj["bitrate"].is_null() ? 0 : channel_obj["bitrate"].get<int>();
+    temp.id = channel_obj["id"].is_null() ? 0 : std::stoul(channel_obj["id"].get<std::string>());
+    temp.name = channel_obj["name"].is_null() ? "" : channel_obj["name"].get<std::string>();
+    temp.position = channel_obj["position"].is_null() ? 0 :channel_obj["position"].get<short>();
+    temp.type = channel_obj["type"].is_null() ? 0 : channel_obj["type"].get<short>();
+    temp.user_limit = channel_obj["user_limit"].is_null() ? 0 : channel_obj["user_limit"].get<short>();
     return temp;
   }
 }

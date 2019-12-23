@@ -14,6 +14,7 @@ CPP_FILES = main.cpp\
 	    events.cpp\
 	    endpoints.cpp\
 	    discord.cpp\
+	    commands.cpp
 
 build:
 	$(CXX) $(CXX_FLAGS) $(CPP_FILES) -o PearlBot $(LIBS)

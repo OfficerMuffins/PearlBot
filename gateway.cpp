@@ -6,7 +6,14 @@
 #define PAYLOAD_DEBUG 1
 namespace backend {
   // using default settings
-  gateway::gateway(Bot *const bot, bool compress, encoding enc) : Connection(bot), workers(NUM_THREADS), rate_sem{rate_limit} {}
+  gateway::gateway(Bot *const bot, bool compress, encoding enc) : Connection(bot), workers(NUM_THREADS), rate_sem{rate_limit} {
+    // set the websocket call back and close handlers
+    client.set_message_handler([this](const websocket_incoming_message &msg){ this->handle_callback(msg); });
+    client.set_close_handler([this](const wss_close_status close_status, const utility::string_t &reason, const std::error_code &error) {
+        std::cout << "error " << error.value() << " " << static_cast<int>(close_status) << ":" << reason << std::endl;
+        this->close();
+        });
+  }
 
   /**
    * @brief: run the connection
@@ -16,12 +23,6 @@ namespace backend {
   void gateway::run() {
     nlohmann::json dump;
 
-    // set the websocket call back and close handlers
-    client.set_message_handler([this](const websocket_incoming_message &msg){ this->handle_callback(msg); });
-    client.set_close_handler([this](const wss_close_status close_status, const utility::string_t &reason, const std::error_code &error) {
-        std::cout << "error " << error.value() << " " << static_cast<int>(close_status) << ":" << reason << std::endl;
-        this->close();
-        });
     // set the new connections status
     bot->status = NEW;
     bot->up_to_date = true;
@@ -44,7 +45,7 @@ namespace backend {
         //boost::asio::post(workers, [this] { this->manage_resources(); }); // resets the rate limit
         //boost::asio::post(workers, [this] { this->manage_events(); }); // sends events at rate limit
         workers.join();
-        f.get(); // throw error from the heartbeat thread
+        f.get(); // throw exception from the heartbeat thread
       } catch(const std::runtime_error &err) { // disconnected, send a resume payload
         std::cout << "disconnected!" << std::endl;
         bot->up_to_date = false;

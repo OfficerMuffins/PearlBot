@@ -12,11 +12,11 @@ class semaphore {
   private:
     std::mutex mutex_;
     std::condition_variable condition_;
-    unsigned long count_; // Initialized as locked.
-    unsigned long max_;
+    uint32_t count_; // Initialized as locked.
+    uint32_t max_;
 
   public:
-    semaphore(unsigned long max) : count_{max}, max_{max} {;}
+    semaphore(uint32_t max) : count_{max}, max_{max} {;}
 
     void notify() {
       std::lock_guard<decltype(mutex_)> lock(mutex_);
