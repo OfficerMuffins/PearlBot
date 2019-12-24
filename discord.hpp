@@ -11,7 +11,8 @@ class client;
 enum state {
   ACTIVE,
   DISCONNECTED,
-  NEW
+  NEW,
+  TERMINATE
 };
 
 namespace discord {

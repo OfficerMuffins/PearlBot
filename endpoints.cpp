@@ -22,6 +22,7 @@ namespace backend {
           return {};
         }
         std::string json_dump = response.extract_utf8string(true).get();
+        std::cout << json_dump << std::endl;
         auto parsed_json = json_dump.empty() ? nlohmann::json{} : nlohmann::json::parse(json_dump);
         return parsed_json;
       }
@@ -46,27 +47,32 @@ namespace backend {
     return { base_uri };
   }
 
-  void client::send_message(std::string temp) {
+  void client::send_message(std::string msg) {
     http_request request(web::http::methods::POST);
     default_headers(request);
 
     uri_builder endpoint(base_uri);
 
     nlohmann::json body {
-      {
-        {"content", temp},
+        {"content", msg},
         {"tts", false}
-      }
     };
 
+    discord::channel chan;
     endpoint.append_path("channels");
+
+    // finds the first text channel. Only uses 1 text channel for now
+    for(int i = 0; i < bot->guild_info.channels.size(); i++) {
+      if(bot->guild_info.channels[i].type == 0) {
+        chan = bot->guild_info.channels[i];
+      }
+    }
     endpoint.append_path(std::to_string(chan.id));
     endpoint.append_path("messages");
+
     request.set_body(body.dump(4));
     http_client client{ endpoint.to_uri() };
-    client.request(request).then([](web::http::http_response response) {
-        std::cout << response.extract_utf8string(true).get() << std::endl;
-        }).wait();
+    client.request(request).then([](web::http::http_response response) {});
   }
 
   void client::default_headers(http_request &request) {

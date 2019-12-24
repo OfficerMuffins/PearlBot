@@ -3,7 +3,7 @@
 #include "gateway.hpp"
 #include "bot.hpp"
 
-#define PAYLOAD_DEBUG 1
+#define PAYLOAD_DEBUG 0
 namespace backend {
   // using default settings
   gateway::gateway(Bot *const bot, bool compress, encoding enc) : Connection(bot), workers(NUM_THREADS), rate_sem{rate_limit} {
@@ -38,7 +38,7 @@ namespace backend {
     while(bot->status != ACTIVE); // wait until we receive the ready event for us to actually start heartbeating
 
     // TODO if disconnected, signal all other threads from other files
-    while(true) { // continually try to maintain a connection
+    while(bot->status != TERMINATE) { // continually try to maintain a connection
       try {
         // start all workers
         boost::asio::post(workers, [&]{ this->heartbeat(p); }); // sends heartbeats at hearbeat intervals
@@ -192,7 +192,7 @@ namespace backend {
    * Once all threads have been joined, the client closes.
    */
   void gateway::close() {
-    bot->status = DISCONNECTED;
+    bot->status = TERMINATE;
     workers.join(); // peaceful exit
     client.close().then([](){});
   }

@@ -37,7 +37,7 @@ int Bot::run() {
 }
 
 Bot::~Bot() {
-  status = DISCONNECTED;
+  status = TERMINATE;
   wss_gateway.close();
 }
 

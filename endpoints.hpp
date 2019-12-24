@@ -8,7 +8,7 @@ namespace backend {
   typedef web::http::http_request http_request;
   typedef web::uri_builder uri_builder;
 
-  static const std::string base_uri = "https://discordapp.com/api/v6/gateway";
+  static const std::string base_uri = "https://discordapp.com/api/v6";
 
   class client : public Connection {
     enum endpoints {
