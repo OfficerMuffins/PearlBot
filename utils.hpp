@@ -50,4 +50,5 @@ namespace backend {
   discord::user parse_user(const nlohmann::json &);
   discord::role parse_role(const nlohmann::json &);
   discord::channel parse_channel(const nlohmann::json &);
+  discord::member parse_member(const nlohmann::json &);
 }

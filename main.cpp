@@ -3,16 +3,19 @@
 
 #include <iostream>
 #include <fstream>
+#include <csignal>
 
 using namespace std;
 
 unique_ptr<Bot> pearlbot;
 
 struct settings {
-  vector<discord::user> gang;
+  vector<discord::member> gang;
 };
 
 settings bot_setting;
+
+void signalHandler(int sig);
 
 int main() {
   // grab the token in token.txt
@@ -22,6 +25,12 @@ int main() {
 
   pearlbot = unique_ptr<Bot>(new Bot(token, '$'));
 
+  signal(SIGINT, signalHandler);
+  signal(SIGSEGV, signalHandler);
+  signal(SIGTERM, signalHandler);
+  signal(SIGFPE, signalHandler);
+  signal(SIGABRT, signalHandler);
+
   // upload settings
   try {
     ifstream settings("settings.json");
@@ -30,20 +39,24 @@ int main() {
     auto dump = nlohmann::json::parse(settings_buf);
 
     pearlbot->whitelist.push_back({dump["owner"].get<uint64_t>()});
-    size_t idx = 0;
-    while(!dump["gang"][idx++].is_null()) {
-      bot_setting.gang.push_back({!dump["gang"][idx].get<uint64_t>()});
+    for(auto it = dump["gang"].begin(); it != dump["gang"].end(); ++it) {
+      bot_setting.gang.push_back({(*it).get<uint64_t>()});
     }
 
-    while(!dump["whitelist"][idx++].is_null()) {
-      bot_setting.gang.push_back({!dump["gang"][idx].get<uint64_t>()});
+    for(auto it = dump["whitelist"].begin(); it != dump["whitelist"].end(); ++it) {
+      bot_setting.gang.push_back({(*it).get<uint64_t>()});
     }
 
-    while(!dump["blacklist"][idx++].is_null()) {
-      bot_setting.gang.push_back({!dump["gang"][idx].get<uint64_t>()});
+    for(auto it = dump["blacklist"].begin(); it != dump["blacklist"].end(); ++it) {
+      bot_setting.gang.push_back({(*it).get<uint64_t>()});
     }
   } catch(const std::exception &e) {
-    std::cout << "Failed to load settings" << e.what() << std::endl;
+    std::cout << e.what() << std::endl;
   }
   return pearlbot->run();
+}
+
+void signalHandler(int sig) {
+  pearlbot.reset();
+  exit(sig);
 }

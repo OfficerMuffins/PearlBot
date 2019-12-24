@@ -61,8 +61,8 @@ namespace backend {
       void heartbeat(std::promise<void> &); // handle heartbeat
 
       // utilities
-      nlohmann::json package(const discord::payload &payload);
-      static discord::payload unpack(const nlohmann::json msg);
+      nlohmann::json package(const discord::payload);
+      static discord::payload unpack(const nlohmann::json);
       void send_payload(const nlohmann::json&);
 
       // handlers
@@ -106,8 +106,6 @@ namespace backend {
       EVENT_DECL(HELLO);
       EVENT_DECL(READY);
       EVENT_DECL(RESUMED);
-      EVENT_DECL(RECONNECT);
-      EVENT_DECL(INVALID_SESSION);
       EVENT_DECL(CHANNEL_CREATE);
       EVENT_DECL(CHANNEL_UPDATE);
       EVENT_DECL(CHANNEL_DELETE);
@@ -118,11 +116,11 @@ namespace backend {
       EVENT_DECL(GUILD_BAN_ADD);
       EVENT_DECL(GUILD_BAN_REMOVE);
       EVENT_DECL(GUILD_EMOJIS_UPDATE);
-      EVENT_DECL(GUILD_INTEGRATION_UPDATE);
+      EVENT_DECL(GUILD_INTEGRATIONS_UPDATE);
       EVENT_DECL(GUILD_MEMBER_ADD);
       EVENT_DECL(GUILD_MEMBER_REMOVE);
       EVENT_DECL(GUILD_MEMBER_UPDATE);
-      EVENT_DECL(GUILD_MEMBER_CHUNK);
+      EVENT_DECL(GUILD_MEMBERS_CHUNK);
       EVENT_DECL(GUILD_ROLE_CREATE);
       EVENT_DECL(GUILD_ROLE_UPDATE);
       EVENT_DECL(GUILD_ROLE_DELETE);
@@ -144,8 +142,6 @@ namespace backend {
         EVENT_ENTRY(HELLO),
         EVENT_ENTRY(READY),
         EVENT_ENTRY(RESUMED),
-        EVENT_ENTRY(RECONNECT),
-        EVENT_ENTRY(INVALID_SESSION),
         EVENT_ENTRY(CHANNEL_CREATE),
         EVENT_ENTRY(CHANNEL_UPDATE),
         EVENT_ENTRY(CHANNEL_DELETE),
@@ -156,11 +152,11 @@ namespace backend {
         EVENT_ENTRY(GUILD_BAN_ADD),
         EVENT_ENTRY(GUILD_BAN_REMOVE),
         EVENT_ENTRY(GUILD_EMOJIS_UPDATE),
-        EVENT_ENTRY(GUILD_INTEGRATION_UPDATE),
+        EVENT_ENTRY(GUILD_INTEGRATIONS_UPDATE),
         EVENT_ENTRY(GUILD_MEMBER_ADD),
         EVENT_ENTRY(GUILD_MEMBER_REMOVE),
         EVENT_ENTRY(GUILD_MEMBER_UPDATE),
-        EVENT_ENTRY(GUILD_MEMBER_CHUNK),
+        EVENT_ENTRY(GUILD_MEMBERS_CHUNK),
         EVENT_ENTRY(GUILD_ROLE_CREATE),
         EVENT_ENTRY(GUILD_ROLE_UPDATE),
         EVENT_ENTRY(GUILD_ROLE_DELETE),

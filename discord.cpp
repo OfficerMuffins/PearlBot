@@ -12,4 +12,7 @@ namespace discord {
     os << "<@" << obj.id << ">";
     return os;
   }
+
+  member::member(uint64_t id) : usr_info(id) {;}
+  member::member() : member(0) {;}
 }

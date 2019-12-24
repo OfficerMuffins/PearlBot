@@ -30,11 +30,7 @@ namespace backend {
     bot->up_to_date = true;
   }
 
-  EVENT_HANDLER(RECONNECT) {
-  }
-
   EVENT_HANDLER(HELLO) {}
-  EVENT_HANDLER(INVALID_SESSION){}
   EVENT_HANDLER(CHANNEL_CREATE){}
   EVENT_HANDLER(CHANNEL_UPDATE){}
   EVENT_HANDLER(CHANNEL_DELETE){}
@@ -53,15 +49,13 @@ namespace backend {
       bot->guild_info.member_count = msg.d["member_count"].get<int>();
       auto roles = msg.d["roles"];
       auto channels = msg.d["channels"];
-      size_t idx = 0;
-      while(!roles[idx++].is_null()) {
-        (bot->guild_info.roles).push_back(parse_role(roles[idx]));
+      for(auto it = roles.begin(); it != roles.end(); ++it) {
+        (bot->guild_info.roles).push_back(parse_role(*it));
       }
-      idx = 0;
-      while(!channels[idx++].is_null()) {
-        (bot->guild_info.channels).push_back(parse_channel(roles[idx]));
+      for(auto it = channels.begin(); it != channels.end(); ++it) {
+        (bot->guild_info.channels).push_back(parse_channel(*it));
       }
-      send_payload({discord::REQUEST_GUILD_MEMBERS});
+      send_payload(package({discord::REQUEST_GUILD_MEMBERS}));
     } catch(const std::exception &e) {
       std::cout << __FILE__ << __LINE__ << ": " << e.what() << std::endl;
     }
@@ -72,7 +66,7 @@ namespace backend {
   EVENT_HANDLER(GUILD_BAN_ADD){}
   EVENT_HANDLER(GUILD_BAN_REMOVE){}
   EVENT_HANDLER(GUILD_EMOJIS_UPDATE){}
-  EVENT_HANDLER(GUILD_INTEGRATION_UPDATE){}
+  EVENT_HANDLER(GUILD_INTEGRATIONS_UPDATE){}
   EVENT_HANDLER(GUILD_MEMBER_ADD){}
   EVENT_HANDLER(GUILD_MEMBER_REMOVE){}
 
@@ -85,15 +79,14 @@ namespace backend {
    * member map. This event provides a list of member objects which will be ignored. The only
    * relevant information here is the user object.
    */
-  EVENT_HANDLER(GUILD_MEMBER_CHUNK) {
+  EVENT_HANDLER(GUILD_MEMBERS_CHUNK) {
     try {
       // make sure that we have the correct guild
-      assert(std::stoul(msg.d["id"].get<std::string>()) == bot->guild_info.id);
+      assert(std::stoul(msg.d["guild_id"].get<std::string>()) == bot->guild_info.id);
       auto members = msg.d["members"];
-      size_t idx = 0;
-      while(!members[idx++].is_null()) {
-        discord::user new_user = parse_user(members[idx]["user"]);
-        (bot->guild_info.users)[new_user.id] = new_user;
+      for(auto it = members.begin(); it != members.end(); ++it) {
+        discord::member new_member = parse_member(*it);
+        (bot->guild_info.members)[new_member.usr_info.id] = new_member;
       }
     } catch(const std::exception &e) {
       std::cout << __FILE__ << __LINE__ << ": " << e.what() << std::endl;
@@ -113,13 +106,13 @@ namespace backend {
   EVENT_HANDLER(MESSAGE_CREATE) {
     std::string content = msg.d["content"].get<std::string>();
     if(content.at(0) == bot->ref) {
-      if(bot->whitelist[0].id != msg.d["user"]["id"].get<uint64_t>()) { // check if the user has permission to issue a command
-        //bot->command_q.push([](){});
+      std::function<void()> task;
+      if(bot->whitelist[0].usr_info.id != std::stoul(msg.d["author"]["id"].get<std::string>())) { // check if the user has permission to issue a command
+        bot->command_q.push([](){});
         return;
       }
       content.erase(0,1);
       std::string cmd = content.substr(0, content.find(" ")); // finds first word
-      std::function<void()> task;
       if(cmd == "makegang") {
         tokenizer<> tok(content);
         std::vector<discord::user> args;
@@ -130,6 +123,9 @@ namespace backend {
         (bot->command_q).push(task);
       } else if(cmd == "gaygang") {
         task = {command_pinggang};
+        (bot->command_q).push(task);
+      } else if(cmd == "hello") {
+        task = {command_hello};
         (bot->command_q).push(task);
       }
     }
@@ -142,8 +138,7 @@ namespace backend {
   EVENT_HANDLER(MESSAGE_REACTION_REMOVE){}
   EVENT_HANDLER(MESSAGE_REACTION_REMOVE_ALL){}
 
-  EVENT_HANDLER(PRESENCE_UPDATE) {
-  }
+  EVENT_HANDLER(PRESENCE_UPDATE) {}
 
   EVENT_HANDLER(TYPING_START) {}
   EVENT_HANDLER(USER_UPDATE){}
@@ -185,7 +180,8 @@ namespace backend {
 
   GATEWAY_HANDLE(RECONNECT) {}
 
-  GATEWAY_HANDLE(REQUEST_GUILD_MEMBERS) {}
+  GATEWAY_HANDLE(REQUEST_GUILD_MEMBERS) {
+  }
 
   GATEWAY_HANDLE(INVALID_SESS) {
     bot->status = DISCONNECTED;

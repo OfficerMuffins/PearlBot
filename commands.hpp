@@ -14,3 +14,5 @@ struct command : Function {
 
 void command_makegang(std::vector<discord::user>);
 void command_pinggang();
+void command_hello();
+void command_permission_denied();

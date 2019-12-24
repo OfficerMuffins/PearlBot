@@ -21,16 +21,16 @@ namespace discord {
     IDENTIFY = 2,
     STATUS_UPDATE = 3,
     VOICE_UPDATE = 4,
-    RESUME = 5,
-    RECONNECT = 6,
-    REQUEST_GUILD_MEMBERS = 7,
+    RESUME = 6,
+    RECONNECT = 7,
+    REQUEST_GUILD_MEMBERS = 8,
     INVALID_SESS = 9,
     HELLO = 10,
     HEARTBEAT_ACK = 11
   };
 
-  namespace gateway_events {
-    enum gateway_events {
+  namespace gateway {
+    enum events {
       HELLO,
       READY,
       RESUMED,
@@ -67,6 +67,14 @@ namespace discord {
       VOICE_STATE_UPDATE,
       VOICE_SERVER_UPDATE,
       WEBHOOKS_UPDATE,
+
+      // commands
+      IDENTIFY,
+      RESUME,
+      HEARTBEAT,
+      REQUEST_GUILD_MEMBERS,
+      UPDATE_VOICE_STATUS,
+      UPDATE_STATUS,
     };
   };
 
@@ -75,15 +83,24 @@ namespace discord {
     std::string username;
     uint64_t discriminator;
     uint64_t avatar;
-    bool bot;
-    bool deaf;
-    bool mute;
 
     user(uint64_t);
     user();
     friend std::ostream& operator<<(std::ostream&, const user&);
     inline bool operator==(const user& other) { return other.id == this->id; }
     inline bool operator!=(const user& other) { return other.id != this->id; }
+  };
+
+  struct member {
+    bool deaf;
+    bool mute;
+    std::string nick;
+    user usr_info;
+
+    member(uint64_t);
+    member();
+    inline bool operator==(const member& other) { return other.usr_info.id == this->usr_info.id; }
+    inline bool operator!=(const member& other) { return other.usr_info.id != this->usr_info.id; }
   };
 
   struct role {
@@ -109,7 +126,7 @@ namespace discord {
     std::string region;
     int member_count;
     uint64_t id;
-    std::unordered_map<uint64_t, user> users;
+    std::unordered_map<uint64_t, member> members;
     std::vector<role> roles;
     std::vector<channel> channels;
   };

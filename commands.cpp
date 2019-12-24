@@ -1,4 +1,5 @@
 #include "commands.hpp"
+//#include <boost/python.hpp>
 #include <sstream>
 
 #define CREATE_INSTANT_INVITE	0x00000001
@@ -65,4 +66,16 @@ void command_pinggang() {
     out << usr << " ";
   }
   pearlbot->create_message(out.str());
+}
+
+/*
+void command_lookup_league(std::string username, std::string region) {
+}*/
+
+void command_hello() {
+  pearlbot->create_message("Hello");
+}
+
+void command_permission_denied() {
+  pearlbot->create_message("Permission Denied");
 }

@@ -32,6 +32,6 @@ class Bot {
     void create_message(std::string);
     void ping_user();
 
-    std::vector<discord::user> whitelist;
-    std::vector<discord::user> blacklist;
+    std::vector<discord::member> whitelist;
+    std::vector<discord::member> blacklist;
 };
