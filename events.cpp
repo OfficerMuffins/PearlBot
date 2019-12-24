@@ -4,6 +4,9 @@
 #include "commands.hpp"
 #include "utils.hpp"
 #include <boost/tokenizer.hpp>
+#include <algorithm>
+#include <iterator>
+#include <vector>
 
 #define EVENT_HANDLER(t) void gateway::event_##t(const discord::payload &msg)
 #define GATEWAY_HANDLE(op) void gateway::handle_##op(const discord::payload &msg)
@@ -107,10 +110,17 @@ namespace backend {
     std::string content = msg.d["content"].get<std::string>();
     if(content.at(0) == bot->ref) {
       std::function<void()> task;
-      if(bot->whitelist[0].usr_info.id != std::stoul(msg.d["author"]["id"].get<std::string>())) { // check if the user has permission to issue a command
-        bot->command_q.push([](){});
+
+      // check if the user has permission to issue a command
+      uint64_t requestor_id = std::stoul(msg.d["author"]["id"].get<std::string>());
+      discord::member temp{requestor_id};
+      auto result = find(std::begin(bot->whitelist), std::end(bot->whitelist), temp);
+      if(result != std::end(bot->whitelist)) {
+        task = {command_permission_denied};
+        bot->command_q.push(task);
         return;
       }
+
       content.erase(0,1);
       std::string cmd = content.substr(0, content.find(" ")); // finds first word
       if(cmd == "makegang") {

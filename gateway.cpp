@@ -3,7 +3,7 @@
 #include "gateway.hpp"
 #include "bot.hpp"
 
-#define PAYLOAD_DEBUG 0
+#define PAYLOAD_DEBUG 1
 namespace backend {
   // using default settings
   gateway::gateway(Bot *const bot, bool compress, encoding enc) : Connection(bot), workers(NUM_THREADS), rate_sem{rate_limit} {
