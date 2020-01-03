@@ -47,7 +47,7 @@ namespace backend {
     return { base_uri };
   }
 
-  void client::send_message(std::string msg) {
+  void client::create_message(std::string msg) {
     http_request request(web::http::methods::POST);
     default_headers(request);
 
@@ -58,16 +58,16 @@ namespace backend {
         {"tts", false}
     };
 
-    discord::channel chan;
     endpoint.append_path("channels");
 
     // finds the first text channel. Only uses 1 text channel for now
+    /*
     for(int i = 0; i < bot->guild_info.channels.size(); i++) {
       if(bot->guild_info.channels[i].type == 0) {
         chan = bot->guild_info.channels[i];
       }
-    }
-    endpoint.append_path(std::to_string(chan.id));
+    }*/
+    endpoint.append_path(std::to_string(bot->curr_chan)); // FIXME
     endpoint.append_path("messages");
 
     request.set_body(body.dump(4));

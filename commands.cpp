@@ -68,9 +68,8 @@ void command_pinggang() {
   pearlbot->create_message(out.str());
 }
 
-/*
 void command_lookup_league(std::string username, std::string region) {
-}*/
+}
 
 void command_hello() {
   pearlbot->create_message("Hello");

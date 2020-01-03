@@ -34,7 +34,10 @@ namespace backend {
   }
 
   EVENT_HANDLER(HELLO) {}
-  EVENT_HANDLER(CHANNEL_CREATE){}
+
+  EVENT_HANDLER(CHANNEL_CREATE) {
+  }
+
   EVENT_HANDLER(CHANNEL_UPDATE){}
   EVENT_HANDLER(CHANNEL_DELETE){}
   EVENT_HANDLER(CHANNEL_PINS_UPDATE){}
@@ -108,15 +111,17 @@ namespace backend {
    */
   EVENT_HANDLER(MESSAGE_CREATE) {
     std::string content = msg.d["content"].get<std::string>();
+    uint64_t channel_id = std::stoul(msg.d["channel_id"].get<std::string>());
     if(content.at(0) == bot->ref) {
-      std::function<void()> task;
+      bot_task task;
+      task.channel_id = channel_id;
 
       // check if the user has permission to issue a command
       uint64_t requestor_id = std::stoul(msg.d["author"]["id"].get<std::string>());
       discord::member temp{requestor_id};
       auto result = find(std::begin(bot->whitelist), std::end(bot->whitelist), temp);
-      if(result != std::end(bot->whitelist)) {
-        task = {command_permission_denied};
+      if(result == std::end(bot->whitelist)) {
+        task.todo = {command_permission_denied};
         bot->command_q.push(task);
         return;
       }
@@ -129,13 +134,13 @@ namespace backend {
         for(tokenizer<>::iterator beg=tok.begin(); beg != tok.end(); ++beg) {
           args.push_back({std::stoul(*beg)});
         }
-        task = std::bind(command_makegang, args);
+        task.todo = std::bind(command_makegang, args);
         (bot->command_q).push(task);
       } else if(cmd == "gaygang") {
-        task = {command_pinggang};
+        task.todo = {command_pinggang};
         (bot->command_q).push(task);
       } else if(cmd == "hello") {
-        task = {command_hello};
+        task.todo = {command_hello};
         (bot->command_q).push(task);
       }
     }

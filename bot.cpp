@@ -23,10 +23,12 @@ int Bot::run() {
     std::thread wss = std::thread([this](){this->wss_gateway.run();}); // start the gateway handler
     while(status == NEW); // gateway to confirm we are ready
     while(status == ACTIVE) {
+      // sleep until notified that there is command waiting
       if(!command_q.empty()) {
-        auto cmd = command_q.front();
+        auto task = command_q.front();
         command_q.pop(); // make the commit
-        cmd();
+        curr_chan = task.channel_id;
+        task.todo();
       }
     }
     wss.join();
@@ -42,5 +44,5 @@ Bot::~Bot() {
 }
 
 void Bot::create_message(std::string msg) {
-  c.send_message(msg);
+  c.create_message(msg);
 }

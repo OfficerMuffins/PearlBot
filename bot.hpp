@@ -14,7 +14,7 @@ class Bot {
     // shared between bot, gateway, and connection
     state status; // if the bot is active or not
     bool up_to_date; // used when the bot has disconnected and needs to retrace its steps
-    std::queue<std::function<void()>> command_q; // issued to maintain commands
+    std::queue<bot_task> command_q; // issued to maintain commands
     backend::gateway wss_gateway; // gateway object, handles state
     backend::client c; // handles interactions with REST API
     std::string token; // secret token of the bot
@@ -24,6 +24,8 @@ class Bot {
     // internal server information
     discord::guild guild_info; // contains guild info, Pearlbot is only used for 1 guild
     discord::role bot_role; // role information for bot, primarily only used for permissions
+
+    uint64_t curr_chan;
 
     Bot(std::string, char);
     Bot();

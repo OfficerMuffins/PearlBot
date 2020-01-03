@@ -15,6 +15,11 @@ enum state {
   TERMINATE
 };
 
+struct bot_task {
+  std::function<void()> todo; // bound function
+  uint64_t channel_id; // channel to send the command to
+};
+
 namespace discord {
   enum opcodes {
     DISPATCH = 0,

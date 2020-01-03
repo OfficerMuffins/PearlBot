@@ -40,7 +40,7 @@ namespace backend {
     // TODO if disconnected, signal all other threads from other files
     while(bot->status != TERMINATE) { // continually try to maintain a connection
       try {
-        // start all workers
+        // start all workers, for now, rate limiting is turned off because low activity is expected
         boost::asio::post(workers, [&]{ this->heartbeat(p); }); // sends heartbeats at hearbeat intervals
         //boost::asio::post(workers, [this] { this->manage_resources(); }); // resets the rate limit
         //boost::asio::post(workers, [this] { this->manage_events(); }); // sends events at rate limit
@@ -135,7 +135,6 @@ namespace backend {
           heartbeat_lock.unlock();
           throw std::runtime_error("did not receive heartbeat ack");
         }
-        std::cout << "sending heartbeat" << heartbeat_interval << std::endl;
         heartbeat_ticks++; // increment the ticks to show that sent out a heartbeat
         // heartbeat_interval is maximum amount of time and there's no punishment for
         // heartbeating, so send it a little earlier

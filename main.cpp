@@ -25,10 +25,8 @@ int main() {
 
   pearlbot = unique_ptr<Bot>(new Bot(token, '$'));
 
-  signal(SIGINT, signalHandler);
   signal(SIGSEGV, signalHandler);
   signal(SIGTERM, signalHandler);
-  signal(SIGFPE, signalHandler);
   signal(SIGABRT, signalHandler);
 
   // upload settings

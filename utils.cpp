@@ -101,9 +101,15 @@ namespace backend {
     discord::channel temp;
     temp.type = channel_obj["type"].is_null() ? 0 : channel_obj["type"].get<short>();
     temp.id = channel_obj["id"].is_null() ? 0 : std::stoul(channel_obj["id"].get<std::string>());
-    temp.name = channel_obj["name"].is_null() ? "" : channel_obj["name"].get<std::string>();
-    temp.position = channel_obj["position"].is_null() ? 0 :channel_obj["position"].get<short>();
+
+    if(temp.type != 1) {
+      temp.name = channel_obj["name"].is_null() ? "" : channel_obj["name"].get<std::string>();
+      temp.position = channel_obj["position"].is_null() ? 0 :channel_obj["position"].get<short>();
+    }
     switch(temp.type) {
+      case(1): {
+        break;
+      }
       case(0): {
         break;
       }

@@ -20,11 +20,9 @@ namespace backend {
       CHANNELS,
     };
 
-    discord::guild chan;
-
     public:
       pplx::task<nlohmann::json> identify();
-      void send_message(std::string);
+      void create_message(std::string);
       client(Bot *const);
 
     private:
