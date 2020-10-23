@@ -36,45 +36,45 @@
 using namespace std;
 
 struct settings {
-  vector<discord::user> gang;
+    vector<discord::user> gang;
 };
 
 extern settings bot_setting;
 extern std::unique_ptr<Bot> pearlbot;
 
 void command_makegang(std::vector<discord::user> users) {
-  if((pearlbot->bot_role.permissions & SEND_MESSAGES) == 0) { // no permission to send message
-    throw std::runtime_error("Permission Denied");
-  }
+    if((pearlbot->bot_role.permissions & SEND_MESSAGES) == 0) { // no permission to send message
+        throw std::runtime_error("Permission Denied");
+    }
 
-  std::ostringstream out;
-  out << "Gay gang: ";
-  for(const discord::user& usr : users) {
-    bot_setting.gang.push_back(usr);
-    out << usr.username << " ";
-  }
-  pearlbot->create_message(out.str());
+    std::ostringstream out;
+    out << "Gay gang: ";
+    for(const discord::user& usr : users) {
+        bot_setting.gang.push_back(usr);
+        out << usr.username << " ";
+    }
+    pearlbot->create_message(out.str());
 }
 
 void command_pinggang() {
-  if((pearlbot->bot_role.permissions & SEND_MESSAGES) == 0) { // no permission to send message
-    throw std::runtime_error("Permission Denied");
-  }
+    if((pearlbot->bot_role.permissions & SEND_MESSAGES) == 0) { // no permission to send message
+        throw std::runtime_error("Permission Denied");
+    }
 
-  std::ostringstream out;
-  for(const discord::user& usr : bot_setting.gang) {
-    out << usr << " ";
-  }
-  pearlbot->create_message(out.str());
+    std::ostringstream out;
+    for(const discord::user& usr : bot_setting.gang) {
+        out << usr << " ";
+    }
+    pearlbot->create_message(out.str());
 }
 
 void command_lookup_league(std::string username, std::string region) {
 }
 
 void command_hello() {
-  pearlbot->create_message("Hello");
+    pearlbot->create_message("Hello");
 }
 
 void command_permission_denied() {
-  pearlbot->create_message("Permission Denied");
+    pearlbot->create_message("Permission Denied");
 }
